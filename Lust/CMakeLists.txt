@@ -1,0 +1,105 @@
+cmake_minimum_required(VERSION 3.19)
+project(Lust LANGUAGES CXX)
+
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets)
+find_package(OpenCV 4.12.0 REQUIRED COMPONENTS core imgproc highgui)
+qt_standard_project_setup()
+
+qt_add_executable(Lust
+    WIN32 MACOSX_BUNDLE
+    ControlWidget/ControlWidget.h
+    ControlWidget/ControlWidget.cpp
+    ControlWidget/ControlWidgetUI.h
+
+    LoadingDialog/LoadingDialog.h
+    LoadingDialog/LoadingDialog.cpp
+    LoadingDialog/LoadingDialogUI.h
+
+    ParamWidget/ParamWidget.h
+    ParamWidget/ParamWidget.cpp
+    ParamWidget/CustomWidget/BoolCustomWidget.h
+    ParamWidget/CustomWidget/BoolCustomWidget.cpp
+    ParamWidget/OneCustomWidget.h
+    ParamWidget/OneCustomWidget.cpp
+    ParamWidget/CameraParamItem.h
+    ParamWidget/CameraParamItem.cpp
+    ParamWidget/CameraParamModel.h
+    ParamWidget/CameraParamModel.cpp
+    ParamWidget/CameraParamDelegate.h
+    ParamWidget/CameraParamDelegate.cpp
+    ParamWidget/ParamWidgetUI.h
+    ParamWidget/CustomWidget/CmdCustomWidget.h
+    ParamWidget/CustomWidget/CmdCustomWidget.cpp
+    ParamWidget/CustomWidget/DoubleCustomWidget.h
+    ParamWidget/CustomWidget/DoubleCustomWidget.cpp
+    ParamWidget/CustomWidget/EnumCustomWidget.h
+    ParamWidget/CustomWidget/EnumCustomWidget.cpp
+    ParamWidget/CustomWidget/IntCustomWidget.h
+    ParamWidget/CustomWidget/IntCustomWidget.cpp
+    ParamWidget/CustomWidget/StringCustomWidget.h
+    ParamWidget/CustomWidget/StringCustomWidget.cpp
+
+    main.cpp
+    mainwindow.h
+    mainwindow.cpp
+    Listener.h
+    Listener.cpp
+
+    ViewWidget/imageitem.h ViewWidget/imageitem.cpp
+    ViewWidget/graphicsview.h ViewWidget/graphicsview.cpp
+    ViewWidget/viewwidgetui.h
+    ViewWidget/viewwidget.h ViewWidget/viewwidget.cpp
+    ViewWidget/AcquireImageProcess.h
+    ViewWidget/AcquireImageProcess.cpp
+
+    CameraInterface/CMCameraParam.h
+    CameraInterface/CameraError.h
+    CameraInterface/CMCameraMetaInfo.h
+    CameraInterface/CameraImageQueue.h
+    CameraInterface/CameraImageQueue.cpp
+    CameraInterface/CameraInterface.h
+    CameraInterface/CameraContext.h
+    CameraInterface/CameraContext.cpp
+
+    CameraFactory/CameraFactory.h
+    CameraFactory/CameraFactory.cpp
+    CameraFactory/VirtualCamera.h
+    CameraFactory/VirtualCamera.cpp
+    CameraFactory/HikCamera.h
+    CameraFactory/HikCamera.cpp
+
+    Utils/ImageConver.h
+
+    ParseUiJson/ParseUiJson.h
+    ParseUiJson/ParseUiJson.cpp
+    resource.qrc
+)
+
+set(RESOURCE resource.qrc)
+
+qt_add_resources(APP_RESOURCE ${RESOURCE})
+target_sources(Lust PRIVATE ${APP_RESOURCE})
+
+target_link_libraries(Lust
+    PRIVATE
+        Qt::Core
+        Qt::Widgets
+)
+
+target_include_directories(Lust PRIVATE ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(Lust PRIVATE ${OpenCV_LIBS})
+
+include(GNUInstallDirs)
+
+install(TARGETS Lust
+    BUNDLE  DESTINATION .
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+qt_generate_deploy_app_script(
+    TARGET Lust
+    OUTPUT_SCRIPT deploy_script
+    NO_UNSUPPORTED_PLATFORM_ERROR
+)
+install(SCRIPT ${deploy_script})
