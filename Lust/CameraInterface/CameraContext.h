@@ -67,7 +67,7 @@ private:
     ~CameraContext();
 
 private:
-    QMap<QString, CameraInerface*> serialCamMap;
+    QMap<QString, CameraInterface*> serialCamMap;
 };
 
 

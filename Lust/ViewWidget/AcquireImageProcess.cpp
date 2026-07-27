@@ -7,25 +7,51 @@ AcquireImageProcess::AcquireImageProcess()
 
 AcquireImageProcess::~AcquireImageProcess()
 {
-
+    requestStop();
+    wait();
 }
 
-void AcquireImageProcess::setSrial(const QString serial)
+void AcquireImageProcess::setSerial(const QString serial)
 {
     cameraSerial = serial;
+    stopRequested = false;
 }
+
+
+void AcquireImageProcess::requestStop()
+{
+    stopRequested = true;
+}
+
 
 void AcquireImageProcess::run()
 {
-    while(true)
+    while(!stopRequested)
     {
         QImage image;
-        auto ret = CameraContext::getInstance()->getImageLast(cameraSerial,image);
+        const auto ret = CameraContext::getInstance()->getImageLast(cameraSerial,image);
+
+        if(stopRequested)
+        {
+            break;
+        }
+
         if(ret == GETIAMGE_TIMEOUT)
         {
             continue;
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(300));
-        emit sigUpdateImage(image);
+
+        if(ret != CHONGMING_OK)
+        {
+            QThread::sleep(10);
+            continue;
+        }
+
+        if(!image.isNull())
+        {
+            emit sigUpdateImage(image);
+        }
+
+
     }
 }

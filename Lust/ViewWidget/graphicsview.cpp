@@ -38,15 +38,12 @@ bool GraphicsView::setupWidget()
 {
     this->setScene(GVscene);
     GVscene->addItem(GVimageItem);
-    imageInfoLabel->setStyleSheet("color:rgb(200,255,200); "
-                                   "background-color:rgba(50,50,50,160); "
-                                   "font: Microsoft YaHei;"
-                                   "font-size: 15px;");
+    imageInfoLabel->setObjectName("ImageInfoLabel");
     imageInfoLabel->setText(" W:0,H:0 | X:0,Y:0 | R:0,G:0,B:0");
 
     imageInfoWidget->setFixedHeight(25);
-    imageInfoWidget->setGeometry(0,this->height()-25,this->height(),25);
-    imageInfoWidget->setStyleSheet("background-color:rgba(0,0,0,0)");
+    imageInfoWidget->setGeometry(0, this->height() - 25, this->width(), 25);
+    imageInfoWidget->setObjectName("ImageInfoBar");
     QHBoxLayout* infoLayout = new QHBoxLayout();
     infoLayout->setContentsMargins(0,0,0,0);
     infoLayout->setSpacing(0);
@@ -106,7 +103,7 @@ void GraphicsView::resizeEvent(QResizeEvent* event)
 {
     fitFrame();
     onCenter();
-    imageInfoWidget->setGeometry(0,this->height()-25,this->height(),25);
+    imageInfoWidget->setGeometry(0, this->height() - 25, this->width(), 25);
     QGraphicsView::resizeEvent(event);
 }
 
@@ -151,10 +148,10 @@ void GraphicsView::fitFrame()
 
 void GraphicsView::prepareBackGroundBoard(bool invertColor)
 {
-    backGroundPixmap.fill(invertColor ? QColor(220,220,200) : QColor(35,35,35));
+    backGroundPixmap.fill(invertColor ? QColor(226,232,240) : QColor(17,24,39));
     QPainter backgroundPainter(&backGroundPixmap);
-    constexpr QColor color(50, 50, 50, 255);
-    constexpr QColor invertedColor(210, 210, 210, 255);
+    constexpr QColor color(31, 41, 55, 255);
+    constexpr QColor invertedColor(203, 213, 225, 255);
     backgroundPainter.fillRect(0, 0, 18, 18, invertColor ? invertedColor : color);
     backgroundPainter.fillRect(18, 18, 18, 18, invertColor ? invertedColor : color);
     backgroundPainter.end();

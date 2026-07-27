@@ -4,6 +4,7 @@
 #include <QString>
 #include <QThread>
 #include <QImage>
+#include <atomic>
 #include "../CameraInterface/CameraContext.h"
 
 class AcquireImageProcess : public QThread
@@ -13,7 +14,8 @@ public:
     AcquireImageProcess();
     ~AcquireImageProcess();
 
-    void setSrial(const QString serial);
+    void setSerial(const QString serial);
+    void requestStop();
 
 signals:
     void sigUpdateImage(const QImage& image);
@@ -22,6 +24,7 @@ protected:
     void run() override;
 private:
     QString cameraSerial;
+    std::atomic<bool> stopRequested = false;
 };
 
 

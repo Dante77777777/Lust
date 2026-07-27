@@ -6,7 +6,7 @@
 #include "../CameraInterface/CameraInterface.h"
 #include "../ParseUiJson/ParseUiJson.h"
 
-class VirtualCamera : public CameraInerface
+class VirtualCamera : public CameraInterface
 {
 public:
     static const QString VIRTUAL_CAMERA_NAME;

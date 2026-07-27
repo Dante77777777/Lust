@@ -1,14 +1,5 @@
 #include "CameraImageQueue.h"
 
-CameraImageQueue::CameraImageQueue()
-{
-    maxSize_ = 10;
-    shutDownFlag_ = false;
-    for (int i = 0; i < maxSize_; ++i) {
-        freeQueue_.push(cv::Mat());
-    }
-}
-
 CameraImageQueue::CameraImageQueue(size_t maxSize)
 {
     if(maxSize <= 0)
@@ -22,32 +13,6 @@ CameraImageQueue::CameraImageQueue(size_t maxSize)
     }
 }
 
-CameraImageQueue::CameraImageQueue(CameraImageQueue&& other)
-{
-    std::lock_guard<std::mutex> lock(other.mutex_);
-    workQueue_ = std::move(other.workQueue_);
-    freeQueue_ = std::move(other.freeQueue_);
-    maxSize_ = other.maxSize_;
-    shutDownFlag_ = other.shutDownFlag_.load();
-}
-
-
-CameraImageQueue& CameraImageQueue::operator=(CameraImageQueue&& other)
-{
-    if(this != &other)
-    {
-        std::lock_guard<std::mutex> lock1(mutex_);
-        std::lock_guard<std::mutex> lock2(other.mutex_);
-
-        workQueue_ = std::move(other.workQueue_);
-        freeQueue_ = std::move(other.freeQueue_);
-        maxSize_ = other.maxSize_;
-        shutDownFlag_ = other.shutDownFlag_.load();
-        notEmptyCondition_.notify_all();
-        notFullCondition_.notify_all();
-    }
-    return *this;
-}
 
 CameraImageQueue::~CameraImageQueue()
 {
@@ -88,11 +53,13 @@ void CameraImageQueue::clear()
 
 bool CameraImageQueue::isEmpty()
 {
+    std::lock_guard<std::mutex> lock(mutex_);
     return workQueue_.empty();
 }
 
 bool CameraImageQueue::isFull()
 {
+    std::lock_guard<std::mutex> lock(mutex_);
     return workQueue_.size() >= maxSize_;
 }
 
@@ -141,7 +108,7 @@ bool CameraImageQueue::waitForNotEmpty(std::unique_lock<std::mutex>& lock, int t
     }
     else
     {
-        auto notReachTimeout =  notEmptyCondition_.wait_for(lock,std::chrono::microseconds(timeoutMS),[this](){
+        auto notReachTimeout =  notEmptyCondition_.wait_for(lock,std::chrono::milliseconds(timeoutMS),[this](){
             return shutDownFlag_ || !workQueue_.empty();
         });
         return !shutDownFlag_ && notReachTimeout && !workQueue_.empty();
@@ -165,7 +132,7 @@ uint32_t CameraImageQueue::push(const cv::Mat& image, int timeoutMS)
     {
         cv::Mat temp = freeQueue_.front();
         freeQueue_.pop();
-        temp = image;
+        temp = image.clone();
         workQueue_.push(temp);
     }
     else

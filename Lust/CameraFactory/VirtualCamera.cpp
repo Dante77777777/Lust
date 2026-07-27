@@ -5,7 +5,7 @@ const QString VirtualCamera::VIRTUAL_CAMERA_SERIAL = "Vir123456";
 const QString VirtualCamera::VIRTUAL_CAMERA_VENDER = "Virtual";
 
 VirtualCamera::VirtualCamera(const CMCameraMetaInfo& info)
-    :CameraInerface(info)
+    :CameraInterface(info)
 {
 
 }

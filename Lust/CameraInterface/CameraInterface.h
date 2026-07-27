@@ -8,14 +8,14 @@
 #include "opencv2/opencv.hpp"
 #include <QtPlugin>
 
-class CameraInerface
+class CameraInterface
 {
 public:
-    CameraInerface(const CMCameraMetaInfo& info)
+    CameraInterface(const CMCameraMetaInfo& info)
     {
         cameraInfo = info;
     }
-    virtual ~CameraInerface(){}
+    virtual ~CameraInterface(){}
 
     virtual QString UserName()
     {

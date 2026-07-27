@@ -12,15 +12,14 @@
 class CameraImageQueue
 {
 public:
-    CameraImageQueue();
-    CameraImageQueue(size_t maxSize);
+    explicit CameraImageQueue(size_t maxSize = 10);
     ~CameraImageQueue();
 
     CameraImageQueue(const CameraImageQueue&) = delete;
     CameraImageQueue& operator=(const CameraImageQueue&) = delete;
 
-    CameraImageQueue(CameraImageQueue&& other);
-    CameraImageQueue& operator=(CameraImageQueue&& other);
+    CameraImageQueue(CameraImageQueue&& other) = delete;
+    CameraImageQueue& operator=(CameraImageQueue&& other) = delete;
 
     uint32_t push(const cv::Mat& image, int timeoutMS);
     uint32_t pop(cv::Mat& image, int timeoutMs);

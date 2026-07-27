@@ -26,7 +26,7 @@ public slots:
 
 private:
     void setStartGrabbingButtonState(bool checked);
-
+    void stopImageProcess();
 private:
     AcquireImageProcess* imageProcessThread;
     ViewWidgetUI* ui;

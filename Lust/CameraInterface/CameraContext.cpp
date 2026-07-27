@@ -14,7 +14,7 @@ CameraContext* CameraContext::getInstance()
 
 CameraContext::~CameraContext()
 {
-    QMap<QString,CameraInerface*>::Iterator it;
+    QMap<QString,CameraInterface*>::Iterator it;
     for(it = serialCamMap.begin();it != serialCamMap.end(); ++it)
     {
         it.value()->stopGrabbing();
@@ -26,7 +26,7 @@ CameraContext::~CameraContext()
 // 枚举相机
 uint32_t CameraContext::enumerationCamera(QVector<CMCameraMetaInfo>& cameraInfos)
 {
-    QMap<QString,CameraInerface*>::Iterator it;
+    QMap<QString,CameraInterface*>::Iterator it;
     for(it = serialCamMap.begin(); it != serialCamMap.end(); ++it)
     {
         it.value()->stopGrabbing();
@@ -44,7 +44,7 @@ uint32_t CameraContext::enumerationCamera(QVector<CMCameraMetaInfo>& cameraInfos
         if(it == cameraInfos.end())
         {
             cameraInfos.push_back(info);
-            CameraInerface* camera = CameraFactory::getInstance()->createCamera(info);
+            CameraInterface* camera = CameraFactory::getInstance()->createCamera(info);
             if(camera)
             {
                 serialCamMap[info.Serial] = camera;

@@ -8,7 +8,7 @@ CameraFactory* CameraFactory::getInstance()
     return &factory;
 }
 
-CameraInerface* CameraFactory::createCamera(const CMCameraMetaInfo& info)
+CameraInterface* CameraFactory::createCamera(const CMCameraMetaInfo& info)
 {
     QString venderName = info.VenderName;
     if(!creatorMap.contains(venderName))

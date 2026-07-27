@@ -16,12 +16,12 @@ public:
     template<typename T>
     void registerCamera(const QString& venderName)
     {
-        creatorMap[venderName] = [](const CMCameraMetaInfo& info) -> CameraInerface* {
+        creatorMap[venderName] = [](const CMCameraMetaInfo& info) -> CameraInterface* {
             return new T(info);
         };
     }
 
-    CameraInerface* createCamera(const CMCameraMetaInfo& info);
+    CameraInterface* createCamera(const CMCameraMetaInfo& info);
 
     QStringList getSupportedVenders() const;
 
@@ -35,7 +35,7 @@ private:
     CameraFactory& operator=(const CameraFactory&) = delete;
 
 private:
-    using CameraCreator = std::function<CameraInerface*(const CMCameraMetaInfo&)>;
+    using CameraCreator = std::function<CameraInterface*(const CMCameraMetaInfo&)>;
     QMap<QString,CameraCreator> creatorMap;
 };
 
