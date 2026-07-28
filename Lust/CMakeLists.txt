@@ -74,6 +74,9 @@ qt_add_executable(Lust
     CameraFactory/HikCamera.h
     CameraFactory/HikCamera.cpp
 
+    Protocol/FrameProtocol.h
+    Protocol/FrameProtocol.cpp
+
     Utils/ImageConver.h
 
     ParseUiJson/ParseUiJson.h
@@ -120,6 +123,29 @@ if(BUILD_TESTING)
     add_test(
         NAME CameraImageQueueTest
         COMMAND CameraImageQueueTest
+    )
+
+    qt_add_executable(FrameProtocolTest
+        tests/FrameProtocolTest.cpp
+
+        Protocol/FrameProtocol.h
+        Protocol/FrameProtocol.cpp
+    )
+
+    target_include_directories(FrameProtocolTest
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    target_link_libraries(FrameProtocolTest
+        PRIVATE
+            Qt6::Core
+            Qt6::Test
+    )
+
+    add_test(
+        NAME FrameProtocolTest
+        COMMAND FrameProtocolTest
     )
 endif()
 
