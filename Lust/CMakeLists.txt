@@ -1,9 +1,15 @@
 cmake_minimum_required(VERSION 3.19)
 project(Lust LANGUAGES CXX)
 
+include(CTest)
+
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets)
 find_package(OpenCV 4.12.0 REQUIRED COMPONENTS core imgproc highgui)
 qt_standard_project_setup()
+
+if(BUILD_TESTING)
+    find_package(Qt6 6.5 REQUIRED COMPONENTS Test)
+endif()
 
 qt_add_executable(Lust
     WIN32 MACOSX_BUNDLE
@@ -88,6 +94,34 @@ target_link_libraries(Lust
 
 target_include_directories(Lust PRIVATE ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(Lust PRIVATE ${OpenCV_LIBS})
+
+if(BUILD_TESTING)
+    qt_add_executable(CameraImageQueueTest
+        tests/CameraImageQueueTest.cpp
+
+        CameraInterface/CameraImageQueue.h
+        CameraInterface/CameraImageQueue.cpp
+        CameraInterface/CameraError.h
+    )
+
+    target_include_directories(CameraImageQueueTest
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}
+            ${OpenCV_INCLUDE_DIRS}
+    )
+
+    target_link_libraries(CameraImageQueueTest
+        PRIVATE
+            Qt6::Core
+            Qt6::Test
+            ${OpenCV_LIBS}
+    )
+
+    add_test(
+        NAME CameraImageQueueTest
+        COMMAND CameraImageQueueTest
+    )
+endif()
 
 include(GNUInstallDirs)
 

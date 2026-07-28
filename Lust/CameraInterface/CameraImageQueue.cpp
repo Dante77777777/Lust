@@ -3,7 +3,7 @@
 CameraImageQueue::CameraImageQueue(size_t maxSize)
     : maxSize_(maxSize == 0 ? 10 : maxSize)
 {
-    for (int i = 0; i < maxSize_; ++i) {
+    for (size_t i = 0; i < maxSize_; ++i) {
         freeQueue_.push(cv::Mat());
     }
 
@@ -28,7 +28,6 @@ void CameraImageQueue::shutDown()
 
 size_t CameraImageQueue::maxSize() const noexcept
 {
-    std::lock_guard<std::mutex> lock(mutex_);
     return maxSize_;
 }
 
@@ -41,13 +40,16 @@ size_t CameraImageQueue::size() const
 
 void CameraImageQueue::clear()
 {
-    std::lock_guard<std::mutex> lock(mutex_);
-    while(!workQueue_.empty())
     {
-        freeQueue_.push(workQueue_.front());
-        workQueue_.pop();
+        std::lock_guard<std::mutex> lock(mutex_);
+        while(!workQueue_.empty())
+        {
+            freeQueue_.push(std::move(workQueue_.front()));
+            workQueue_.pop();
+        }
+        assert(invariantHoldsLocked());
     }
-    assert(invariantHoldsLocked());
+
     notFullCondition_.notify_all();
 }
 
@@ -69,7 +71,7 @@ bool CameraImageQueue::waitForNotFull(std::unique_lock<std::mutex>& lock, int ti
     {
         return false;
     }
-    if(workQueue_.size() < maxSize_)
+    if(!freeQueue_.empty())
     {
         return true;
     }
