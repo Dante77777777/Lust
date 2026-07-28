@@ -18,7 +18,7 @@ namespace CAMERAERROR {
 #define CAMERA_ACQUIRE_FAILED 0x000B // 相机创建失败
 #define CAMERA_CONFIG_SAVE_FAILED 0x000C // 相机配置文件导出失败
 #define CAMERA_CONFIG_LOAD_FAILED 0x000D // 相机配置文件导入失败
-#define GETIAMGE_TIMEOUT 0x000E // 采图超时
+#define GETIMAGE_TIMEOUT 0x000E // 采图超时
 #define DEVICE_NOT_ACCESSIBLE 0x000F // 设备被占用不可达
 #define PUSH_IMGAE_FAILED 0x0010 // 加入队列失败
 #define POP_IMGAE_FAILED 0x0011 //弹出队列失败
@@ -98,7 +98,7 @@ static QString getErrorInfoEn(unsigned int error)
         info = "Failed to import the camera configuration file";
         break;
     }
-    case GETIAMGE_TIMEOUT:
+    case GETIMAGE_TIMEOUT:
     {
         info = "Get Image TimeOut";
         break;

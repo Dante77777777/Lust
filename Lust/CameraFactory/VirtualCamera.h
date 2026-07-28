@@ -1,8 +1,10 @@
 #ifndef VIRTUALCAMERA_H
 #define VIRTUALCAMERA_H
 #include <chrono>
-#include <ctime>
+#include <atomic>
 #include <thread>
+
+#include <QThread>
 #include "../CameraInterface/CameraInterface.h"
 #include "../ParseUiJson/ParseUiJson.h"
 
@@ -14,7 +16,7 @@ public:
     static const QString VIRTUAL_CAMERA_VENDER;
 
     explicit VirtualCamera(const CMCameraMetaInfo& info);
-    ~VirtualCamera();
+    ~VirtualCamera() override;
     // 枚举相机
     static uint32_t enumCamera(QVector<CMCameraMetaInfo>& cameraInfos);
     // 获取相机参数列表
@@ -58,8 +60,12 @@ public:
     }
 
 private:
+    void grabbingLoop();
+
+private:
     bool isConnect_ = false;
-    bool isGrabbing_ = false;
+    std::atomic<bool> isGrabbing_ = false;
+    std::thread grabbingThread_;
 };
 
 #endif

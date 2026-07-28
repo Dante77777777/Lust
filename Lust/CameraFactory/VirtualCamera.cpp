@@ -12,7 +12,7 @@ VirtualCamera::VirtualCamera(const CMCameraMetaInfo& info)
 
 VirtualCamera::~VirtualCamera()
 {
-
+    stopGrabbing();
 }
 
 // 枚举相机
@@ -45,7 +45,7 @@ bool VirtualCamera::isConnect()
 // 判断相机是否拉流
 bool VirtualCamera::isGrabbing()
 {
-    return isGrabbing_;
+    return isGrabbing_.load();
 }
 
 // 获取相机
@@ -70,6 +70,11 @@ uint32_t VirtualCamera::connect()
 // 断开连接
 uint32_t VirtualCamera::disconnect()
 {
+    const auto ret = stopGrabbing();
+    if(ret != CHONGMING_OK)
+    {
+        return ret;
+    }
     isConnect_ = false;
     return CHONGMING_OK;
 }
@@ -89,31 +94,36 @@ uint32_t VirtualCamera::destroyStream()
 // 开启拉流
 uint32_t VirtualCamera::startGrabbing()
 {
-    auto CreateImage = [this]()
+    if(!isConnect_)
     {
-        while(this->isGrabbing())
-        {
-            cv::Mat canvas = cv::Mat::zeros(512,512,CV_8UC3);
-            cv::RNG rng(time(NULL));
-            int b = rng.uniform(0,255);
-            int g = rng.uniform(0,255);
-            int r = rng.uniform(0,255);
-            canvas.setTo(cv::Scalar(b,g,r));
-            this->getImageQueue().push(canvas,300);
-            std::this_thread::sleep_for(std::chrono::milliseconds(300));
-        }
-    };
+        return CAMERA_NOT_CONNECTED;
+    }
+    bool expected = false;
 
-    isGrabbing_ = true;
-    std::thread grabbingThred(CreateImage);
-    grabbingThred.detach();
+    if(!isGrabbing_.compare_exchange_strong(expected,true))
+    {
+        return CHONGMING_OK;
+    }
+    try {
+        grabbingThread_ = std::thread(&VirtualCamera::grabbingLoop,this);
+    }
+    catch (const std::exception& exception) {
+        isGrabbing_.store(false);
+        qWarning() << "Failed to start virtual camera thread:"
+                   << exception.what();
+        return STARTGRAB_ERROR;
+    }
     return CHONGMING_OK;
 }
 
 // 停止拉流
 uint32_t VirtualCamera::stopGrabbing()
 {
-    isGrabbing_ = false;
+    isGrabbing_.store(false);
+    if(grabbingThread_.joinable())
+    {
+        grabbingThread_.join();
+    }
     return CHONGMING_OK;
 }
 
@@ -192,10 +202,42 @@ uint32_t VirtualCamera::getImageLast(cv::Mat& image)
 {
     cv::Mat srcImage;
     auto ret = getImageQueue().pop(srcImage,500);
-    if(ret == POP_IMGAE_FAILED)
+    if(ret != CHONGMING_OK)
     {
-        return POP_IMGAE_FAILED;
+        return GETIMAGE_TIMEOUT;
     }
     srcImage.copyTo(image);
     return CHONGMING_OK;
+}
+
+
+void VirtualCamera::grabbingLoop()
+{
+    qDebug() << "VirtualCamera grabbing thread started:" << QThread::currentThreadId();
+    const auto seed = static_cast<uint64_t>(std::chrono::steady_clock::now().time_since_epoch().count());
+
+    cv::RNG rng(seed);
+    cv::Mat canvas(512,512,CV_8UC3);
+
+    while(isGrabbing_.load())
+    {
+        const int blue = rng.uniform(0,256);
+        const int green = rng.uniform(0,256);
+        const int red = rng.uniform(0,256);
+
+        canvas.setTo(cv::Scalar(blue,green,red));
+
+        const auto ret = getImageQueue().push(canvas,300);
+
+        if(ret != CHONGMING_OK && isGrabbing_.load())
+        {
+            qWarning() << "VirtualCamera failed to push image:"
+                       << getErrorInfoEn(ret);
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    }
+    qDebug() << "VirtualCamera grabbing thread stopped:"
+             << QThread::currentThreadId();
+
 }

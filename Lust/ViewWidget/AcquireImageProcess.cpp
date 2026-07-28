@@ -11,7 +11,7 @@ AcquireImageProcess::~AcquireImageProcess()
     wait();
 }
 
-void AcquireImageProcess::setSerial(const QString serial)
+void AcquireImageProcess::setSerial(const QString& serial)
 {
     cameraSerial = serial;
     stopRequested = false;
@@ -36,14 +36,14 @@ void AcquireImageProcess::run()
             break;
         }
 
-        if(ret == GETIAMGE_TIMEOUT)
+        if(ret == GETIMAGE_TIMEOUT)
         {
             continue;
         }
 
         if(ret != CHONGMING_OK)
         {
-            QThread::sleep(10);
+            QThread::msleep(10);
             continue;
         }
 

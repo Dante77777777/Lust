@@ -12,9 +12,9 @@ class AcquireImageProcess : public QThread
     Q_OBJECT
 public:
     AcquireImageProcess();
-    ~AcquireImageProcess();
+    ~AcquireImageProcess() override;
 
-    void setSerial(const QString serial);
+    void setSerial(const QString& serial);
     void requestStop();
 
 signals:
