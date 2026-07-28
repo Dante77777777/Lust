@@ -3,12 +3,12 @@ project(Lust LANGUAGES CXX)
 
 include(CTest)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Network)
 find_package(OpenCV 4.12.0 REQUIRED COMPONENTS core imgproc highgui)
 qt_standard_project_setup()
 
 if(BUILD_TESTING)
-    find_package(Qt6 6.5 REQUIRED COMPONENTS Test)
+    find_package(Qt6 6.5 REQUIRED COMPONENTS Test Network)
 endif()
 
 qt_add_executable(Lust
@@ -77,6 +77,9 @@ qt_add_executable(Lust
     Protocol/FrameProtocol.h
     Protocol/FrameProtocol.cpp
 
+    Transport/TcpClient.h
+    Transport/TcpClient.cpp
+
     Utils/ImageConver.h
 
     ParseUiJson/ParseUiJson.h
@@ -93,6 +96,7 @@ target_link_libraries(Lust
     PRIVATE
         Qt::Core
         Qt::Widgets
+        Qt::Network
 )
 
 target_include_directories(Lust PRIVATE ${OpenCV_INCLUDE_DIRS})
