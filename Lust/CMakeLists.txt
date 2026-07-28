@@ -4,7 +4,7 @@ project(Lust LANGUAGES CXX)
 include(CTest)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Network)
-find_package(OpenCV 4.12.0 REQUIRED COMPONENTS core imgproc highgui)
+find_package(OpenCV 4.12.0 REQUIRED COMPONENTS core imgproc highgui imgcodecs)
 qt_standard_project_setup()
 
 if(BUILD_TESTING)
@@ -76,6 +76,8 @@ qt_add_executable(Lust
 
     Protocol/FrameProtocol.h
     Protocol/FrameProtocol.cpp
+    Protocol/ImagePacketEncoder.h
+    Protocol/ImagePacketEncoder.cpp
 
     Transport/TcpClient.h
     Transport/TcpClient.cpp
@@ -150,6 +152,33 @@ if(BUILD_TESTING)
     add_test(
         NAME FrameProtocolTest
         COMMAND FrameProtocolTest
+    )
+
+    qt_add_executable(ImagePacketEncoderTest
+        tests/ImagePacketEncoderTest.cpp
+
+        Protocol/FrameProtocol.h
+        Protocol/FrameProtocol.cpp
+        Protocol/ImagePacketEncoder.h
+        Protocol/ImagePacketEncoder.cpp
+    )
+
+    target_include_directories(ImagePacketEncoderTest
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}
+            ${OpenCV_INCLUDE_DIRS}
+    )
+
+    target_link_libraries(ImagePacketEncoderTest
+        PRIVATE
+            Qt6::Core
+            Qt6::Test
+            ${OpenCV_LIBS}
+    )
+
+    add_test(
+        NAME ImagePacketEncoderTest
+        COMMAND ImagePacketEncoderTest
     )
 
     qt_add_executable(TcpClientTest

@@ -17,6 +17,7 @@
 #include "../CameraFactory/CameraFactory.h"
 #include "../Utils/ImageConver.h"
 #include "../CameraFactory/VirtualCamera.h"
+#include "opencv2/core/mat.hpp"
 
 
 
@@ -60,8 +61,9 @@ public:
     // 写入参数
     uint32_t writeParam(const QString serial,CameraParam& param);
     // 获取图像
-    uint32_t getImageLast(const QString serial,QImage& image);
+    uint32_t getImageLast(const QString& serial,QImage& image);
 
+    uint32_t getImageLastMat(const QString& serial, cv::Mat& image);
 private:
     CameraContext();
     ~CameraContext();

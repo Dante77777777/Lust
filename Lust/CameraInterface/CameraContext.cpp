@@ -286,19 +286,47 @@ uint32_t CameraContext::writeParam(const QString serial,CameraParam& param)
 }
 
 // 获取图像
-uint32_t CameraContext::getImageLast(const QString serial,QImage& image)
+uint32_t CameraContext::getImageLast(const QString& serial,QImage& image)
 {
-    if(serialCamMap.find(serial) == serialCamMap.end())
-    {
-        return NOCAMERA_ERROR;
-    }
-    auto camera = serialCamMap[serial];
+    image = QImage();
     cv::Mat mat;
-    auto ret = camera->getImageLast(mat);
+    const auto ret = getImageLastMat(serial,mat);
+
     if(ret != CHONGMING_OK)
     {
         return ret;
     }
+
+    if(mat.empty())
+    {
+        return GETIMAGE_TIMEOUT;
+    }
+
     image = ImageConver::cvMat2QImage(mat);
+    if(image.isNull())
+    {
+        return GETIMAGE_TIMEOUT;
+
+    }
     return CHONGMING_OK;
+}
+
+
+uint32_t CameraContext::getImageLastMat(const QString& serial, cv::Mat& image)
+{
+    image.release();
+    const auto camaraIterator = serialCamMap.constFind(serial);
+
+    if(camaraIterator == serialCamMap.constEnd())
+    {
+        return NOCAMERA_ERROR;
+    }
+
+    CameraInterface* camera = camaraIterator.value();
+
+    if(camera == nullptr)
+    {
+        return NOCAMERA_ERROR;
+    }
+    return camera->getImageLast(image);
 }
