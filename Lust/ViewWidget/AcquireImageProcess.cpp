@@ -14,7 +14,8 @@ AcquireImageProcess::~AcquireImageProcess()
 void AcquireImageProcess::setSerial(const QString& serial)
 {
     cameraSerial = serial;
-    stopRequested = false;
+    stopRequested.store(false);
+    nextSequence = 0;
 }
 
 
@@ -23,15 +24,26 @@ void AcquireImageProcess::requestStop()
     stopRequested = true;
 }
 
+void AcquireImageProcess::setPublishingEnabled(bool enabled)
+{
+    packetPublishingEnabled.store(enabled);
+}
+
+
+bool AcquireImageProcess::isPacketPublishingEnabled() const noexcept
+{
+    return packetPublishingEnabled.load();
+}
+
 
 void AcquireImageProcess::run()
 {
-    while(!stopRequested)
+    while(!stopRequested.load())
     {
-        QImage image;
-        const auto ret = CameraContext::getInstance()->getImageLast(cameraSerial,image);
+        cv::Mat frame;
+        const auto ret = CameraContext::getInstance()->getImageLastMat(cameraSerial,frame);
 
-        if(stopRequested)
+        if(stopRequested.load())
         {
             break;
         }
@@ -47,11 +59,46 @@ void AcquireImageProcess::run()
             continue;
         }
 
-        if(!image.isNull())
+        if(frame.empty())
         {
-            emit sigUpdateImage(image);
+            continue;
         }
 
+        /*
+         * 当前线程是双队列唯一消费者。
+         * 同一张 frame 同时分发给显示和网络编码。
+         */
 
+        const QImage displayImage = ImageConver::cvMat2QImage(frame);
+
+        if(!displayImage.isNull())
+        {
+            emit sigUpdateImage(displayImage);
+        }
+
+        if(!packetPublishingEnabled.load())
+        {
+            continue;
+        }
+
+        const quint64 sequence = nextSequence++;
+
+        const qint64 currentTimeStamp = QDateTime::currentMSecsSinceEpoch();
+
+        QString errorMessage;
+
+        const QByteArray packet = packetEncoder.encode(frame,sequence,static_cast<quint64>(currentTimeStamp),&errorMessage);
+
+        if(packet.isEmpty())
+        {
+            if(errorMessage.isEmpty())
+            {
+                errorMessage = QStringLiteral("Unknown packet encoding error");
+            }
+            emit sigPacketError(errorMessage);
+            continue;
+        }
+        emit sigPacketReady(packet);
     }
+
 }

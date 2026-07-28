@@ -306,7 +306,6 @@ uint32_t CameraContext::getImageLast(const QString& serial,QImage& image)
     if(image.isNull())
     {
         return GETIMAGE_TIMEOUT;
-
     }
     return CHONGMING_OK;
 }

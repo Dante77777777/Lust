@@ -131,6 +131,48 @@ if(BUILD_TESTING)
         COMMAND CameraImageQueueTest
     )
 
+    qt_add_executable(CameraContextImageTest
+        tests/CameraContextImageTest.cpp
+
+        CameraInterface/CameraContext.h
+        CameraInterface/CameraContext.cpp
+        CameraInterface/CameraInterface.h
+        CameraInterface/CameraImageQueue.h
+        CameraInterface/CameraImageQueue.cpp
+        CameraInterface/CameraError.h
+        CameraInterface/CMCameraMetaInfo.h
+        CameraInterface/CMCameraParam.h
+
+        CameraFactory/CameraFactory.h
+        CameraFactory/CameraFactory.cpp
+        CameraFactory/VirtualCamera.h
+        CameraFactory/VirtualCamera.cpp
+
+        ParseUiJson/ParseUiJson.h
+        ParseUiJson/ParseUiJson.cpp
+
+        Utils/ImageConver.h
+    )
+
+    target_include_directories(CameraContextImageTest
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}
+            ${OpenCV_INCLUDE_DIRS}
+    )
+
+    target_link_libraries(CameraContextImageTest
+        PRIVATE
+            Qt6::Core
+            Qt6::Widgets
+            Qt6::Test
+            ${OpenCV_LIBS}
+    )
+
+    add_test(
+        NAME CameraContextImageTest
+        COMMAND CameraContextImageTest
+    )
+
     qt_add_executable(FrameProtocolTest
         tests/FrameProtocolTest.cpp
 
