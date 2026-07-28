@@ -124,6 +124,7 @@ uint32_t VirtualCamera::stopGrabbing()
     {
         grabbingThread_.join();
     }
+    getImageQueue().clear();
     return CHONGMING_OK;
 }
 

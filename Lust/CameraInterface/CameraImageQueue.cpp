@@ -1,16 +1,13 @@
 #include "CameraImageQueue.h"
 
 CameraImageQueue::CameraImageQueue(size_t maxSize)
+    : maxSize_(maxSize == 0 ? 10 : maxSize)
 {
-    if(maxSize <= 0)
-    {
-        maxSize = 10;
-    }
-    maxSize_ = maxSize;
-    shutDownFlag_ = false;
     for (int i = 0; i < maxSize_; ++i) {
         freeQueue_.push(cv::Mat());
     }
+
+    assert(invariantHoldsLocked());
 }
 
 
@@ -29,12 +26,13 @@ void CameraImageQueue::shutDown()
     notFullCondition_.notify_all();
 }
 
-size_t CameraImageQueue::maxSize()
+size_t CameraImageQueue::maxSize() const noexcept
 {
+    std::lock_guard<std::mutex> lock(mutex_);
     return maxSize_;
 }
 
-size_t CameraImageQueue::size()
+size_t CameraImageQueue::size() const
 {
     std::lock_guard<std::mutex> lock(mutex_);
     return workQueue_.size();
@@ -46,24 +44,26 @@ void CameraImageQueue::clear()
     std::lock_guard<std::mutex> lock(mutex_);
     while(!workQueue_.empty())
     {
+        freeQueue_.push(workQueue_.front());
         workQueue_.pop();
     }
+    assert(invariantHoldsLocked());
     notFullCondition_.notify_all();
 }
 
-bool CameraImageQueue::isEmpty()
+bool CameraImageQueue::isEmpty() const
 {
     std::lock_guard<std::mutex> lock(mutex_);
     return workQueue_.empty();
 }
 
-bool CameraImageQueue::isFull()
+bool CameraImageQueue::isFull() const
 {
     std::lock_guard<std::mutex> lock(mutex_);
-    return workQueue_.size() >= maxSize_;
+    return freeQueue_.empty();
 }
 
-bool CameraImageQueue::waitForNotFull(std::unique_lock<std::mutex>& lock, int timeoutMS)
+bool CameraImageQueue::waitForNotFull(std::unique_lock<std::mutex>& lock, int timeoutMs)
 {
     if(shutDownFlag_)
     {
@@ -73,23 +73,23 @@ bool CameraImageQueue::waitForNotFull(std::unique_lock<std::mutex>& lock, int ti
     {
         return true;
     }
-    if(timeoutMS <= 0)
+    if(timeoutMs <= 0)
     {
         notFullCondition_.wait(lock,[this](){
-            return workQueue_.size() < maxSize_ || shutDownFlag_;
+            return !freeQueue_.empty() || shutDownFlag_;
         });
-        return !shutDownFlag_ && workQueue_.size() < maxSize_;
+        return !shutDownFlag_ && !freeQueue_.empty();
     }
     else
     {
-        auto notRechTimeout =  notFullCondition_.wait_for(lock,std::chrono::milliseconds(timeoutMS),[this](){
-            return workQueue_.size() < maxSize_ || shutDownFlag_;
+        auto notRechTimeout =  notFullCondition_.wait_for(lock,std::chrono::milliseconds(timeoutMs),[this](){
+            return !freeQueue_.empty() || shutDownFlag_;
         });
-        return !shutDownFlag_ && notRechTimeout && workQueue_.size() < maxSize_;
+        return !shutDownFlag_ && notRechTimeout && !freeQueue_.empty();
     }
 }
 
-bool CameraImageQueue::waitForNotEmpty(std::unique_lock<std::mutex>& lock, int timeoutMS)
+bool CameraImageQueue::waitForNotEmpty(std::unique_lock<std::mutex>& lock, int timeoutMs)
 {
     if(shutDownFlag_)
     {
@@ -99,7 +99,7 @@ bool CameraImageQueue::waitForNotEmpty(std::unique_lock<std::mutex>& lock, int t
     {
         return true;
     }
-    if(timeoutMS <= 0)
+    if(timeoutMs <= 0)
     {
         notEmptyCondition_.wait(lock,[this](){
             return shutDownFlag_ || !workQueue_.empty();
@@ -108,7 +108,7 @@ bool CameraImageQueue::waitForNotEmpty(std::unique_lock<std::mutex>& lock, int t
     }
     else
     {
-        auto notReachTimeout =  notEmptyCondition_.wait_for(lock,std::chrono::milliseconds(timeoutMS),[this](){
+        auto notReachTimeout =  notEmptyCondition_.wait_for(lock,std::chrono::milliseconds(timeoutMs),[this](){
             return shutDownFlag_ || !workQueue_.empty();
         });
         return !shutDownFlag_ && notReachTimeout && !workQueue_.empty();
@@ -116,57 +116,65 @@ bool CameraImageQueue::waitForNotEmpty(std::unique_lock<std::mutex>& lock, int t
 }
 
 
-uint32_t CameraImageQueue::push(const cv::Mat& image, int timeoutMS)
+uint32_t CameraImageQueue::push(const cv::Mat& image, int timeoutMs)
 {
+    if(image.empty())
+    {
+        return INVALID_INPUT;
+    }
     std::unique_lock<std::mutex> lock(mutex_);
     if(shutDownFlag_)
     {
         return PUSH_IMGAE_FAILED;
     }
-    if(!waitForNotFull(lock,timeoutMS))
+    if(!waitForNotFull(lock,timeoutMs))
     {
         return PUSH_IMGAE_FAILED;
     }
-    bool wasEmpty = workQueue_.empty();
-    if(freeQueue_.size() != 0)
+    if(freeQueue_.empty())
     {
-        cv::Mat temp = freeQueue_.front();
-        freeQueue_.pop();
-        temp = image.clone();
-        workQueue_.push(temp);
+        return PUSH_IMGAE_FAILED;
     }
-    else
-    {
-        workQueue_.pop();
-        workQueue_.push(image);
-    }
+
+    cv::Mat buffer = std::move(freeQueue_.front());
+    freeQueue_.pop();
+    image.copyTo(buffer);
+    workQueue_.push(std::move(buffer));
+    assert(invariantHoldsLocked());
     lock.unlock();
-    if(wasEmpty)
-    {
-        notEmptyCondition_.notify_one();
-    }
+    notEmptyCondition_.notify_one();
     return CHONGMING_OK;
 }
 
-uint32_t CameraImageQueue::pop(cv::Mat& image, int timeoutMS)
+uint32_t CameraImageQueue::pop(cv::Mat& image, int timeoutMs)
 {
     std::unique_lock<std::mutex> lock(mutex_);
     if(shutDownFlag_)
     {
         return POP_IMGAE_FAILED;
     }
-    if(!waitForNotEmpty(lock,timeoutMS))
+    if(!waitForNotEmpty(lock,timeoutMs))
     {
         return POP_IMGAE_FAILED;
     }
-    bool wasFull = (workQueue_.size() >= maxSize_);
-    image = workQueue_.front();
-    workQueue_.pop();
-    freeQueue_.push(image);
-    lock.unlock();
-    if(wasFull)
+    if(workQueue_.empty())
     {
-        notFullCondition_.notify_one();
+        return POP_IMGAE_FAILED;
     }
+
+    cv::Mat buffer = std::move(workQueue_.front());
+    workQueue_.pop();
+    buffer.copyTo(image);
+    freeQueue_.push(std::move(buffer));
+    assert(invariantHoldsLocked());
+
+    lock.unlock();
+    notFullCondition_.notify_one();
     return CHONGMING_OK;
+}
+
+
+bool CameraImageQueue::invariantHoldsLocked() const noexcept
+{
+    return freeQueue_.size() + workQueue_.size() == maxSize_;
 }

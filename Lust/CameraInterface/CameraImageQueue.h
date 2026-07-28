@@ -6,6 +6,8 @@
 #include <atomic>
 #include <queue>
 #include <chrono>
+#include <cassert>
+#include <utility>
 #include "opencv2/opencv.hpp"
 #include "CameraError.h"
 
@@ -21,20 +23,20 @@ public:
     CameraImageQueue(CameraImageQueue&& other) = delete;
     CameraImageQueue& operator=(CameraImageQueue&& other) = delete;
 
-    uint32_t push(const cv::Mat& image, int timeoutMS);
+    uint32_t push(const cv::Mat& image, int timeoutMs);
     uint32_t pop(cv::Mat& image, int timeoutMs);
 
-    bool isEmpty();
-    bool isFull();
+    bool isEmpty() const;
+    bool isFull() const;
 
     void clear();
-    size_t maxSize();
-    size_t size();
+    size_t maxSize() const noexcept;
+    size_t size() const;
     void shutDown();
 
 private:
     mutable std::mutex mutex_;
-    std::atomic<bool> shutDownFlag_;
+    std::atomic<bool> shutDownFlag_ = false;
     std::condition_variable notFullCondition_;
     std::condition_variable notEmptyCondition_;
 
@@ -42,8 +44,9 @@ private:
     std::queue<cv::Mat> freeQueue_;
     std::queue<cv::Mat> workQueue_;
 
-    bool waitForNotFull(std::unique_lock<std::mutex>& lock, int timeoutMS);
-    bool waitForNotEmpty(std::unique_lock<std::mutex>& lock, int timeoutMS);
+    bool invariantHoldsLocked() const noexcept;
+    bool waitForNotFull(std::unique_lock<std::mutex>& lock, int timeoutMs);
+    bool waitForNotEmpty(std::unique_lock<std::mutex>& lock, int timeoutMs);
 };
 
 
