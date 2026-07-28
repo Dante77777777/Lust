@@ -151,6 +151,33 @@ if(BUILD_TESTING)
         NAME FrameProtocolTest
         COMMAND FrameProtocolTest
     )
+
+    qt_add_executable(TcpClientTest
+        tests/TcpClientTest.cpp
+
+        Transport/TcpClient.h
+        Transport/TcpClient.cpp
+
+        Protocol/FrameProtocol.h
+        Protocol/FrameProtocol.cpp
+    )
+
+    target_include_directories(TcpClientTest
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    target_link_libraries(TcpClientTest
+        PRIVATE
+            Qt6::Core
+            Qt6::Network
+            Qt6::Test
+    )
+
+    add_test(
+        NAME TcpClientTest
+        COMMAND TcpClientTest
+    )
 endif()
 
 include(GNUInstallDirs)

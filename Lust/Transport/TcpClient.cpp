@@ -13,6 +13,8 @@ TcpClient::TcpClient(QObject* parent)
     connect(socket_,&QTcpSocket::errorOccurred,this,[this](){
         emit connectionError(socket_->errorString());
     });
+
+    connect(socket_,&QTcpSocket::bytesWritten,this,&TcpClient::bytesWritten);
 }
 
 void TcpClient::connectToServer(const QString& host, quint16 port)
@@ -56,4 +58,55 @@ bool TcpClient::isConnected() const
 QAbstractSocket::SocketState TcpClient::state() const
 {
     return socket_->state();
+}
+
+
+bool TcpClient::sendPacket(const QByteArray& packet)
+{
+    if(packet.isEmpty())
+    {
+        emit sendError(QStringLiteral("Packet is Empty"));
+        return false;
+    }
+
+    if(!isConnected())
+    {
+        emit sendError(QStringLiteral("TCP Client is not Connected"));
+        return false;
+    }
+
+    const qint64 packetSize = static_cast<qint64>(packet.size());
+
+    const qint64 currentPendingBytes = socket_->bytesToWrite();
+
+    if(packetSize > MAX_PENDING_BYTES || currentPendingBytes > MAX_PENDING_BYTES - packetSize)
+    {
+        emit sendError(QStringLiteral("TCP Send Buffer Limit Exceeded"));
+        return false;
+    }
+
+    const qint64 acceptedBytes = socket_->write(packet);
+    if(acceptedBytes < 0)
+    {
+        emit sendError(socket_->errorString());
+        return false;
+    }
+
+    if(acceptedBytes != packetSize)
+    {
+        /*
+         * 协议包只写入一部分会破坏 TCP 字节流中的
+         * 帧边界，因此关闭连接，避免继续发送错误数据。
+         */
+        socket_->abort();
+        emit sendError(QString("Incomplete Packet Write"));
+        return false;
+    }
+    emit packetQueued(acceptedBytes);
+    return true;
+}
+
+qint64 TcpClient::pendingBytes() const
+{
+    return socket_->bytesToWrite();
 }
