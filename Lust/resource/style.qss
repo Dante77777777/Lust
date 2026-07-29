@@ -258,3 +258,28 @@ QScrollBar::sub-page:vertical {
     border: none;
     height: 0;
 }
+
+QWidget#NetworkPanel {
+    background: #ffffff;
+    border: none;
+}
+
+QLineEdit#NetworkHostEdit,
+QSpinBox#NetworkPortSpinBox {
+    background: #ffffff;
+    color: #1f2937;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 6px 8px;
+    min-height: 22px;
+}
+
+QLineEdit#NetworkHostEdit:focus,
+QSpinBox#NetworkPortSpinBox:focus {
+    border-color: #2563eb;
+}
+
+QLabel#NetworkStateLabel {
+    color: #64748b;
+    padding: 2px 0;
+}

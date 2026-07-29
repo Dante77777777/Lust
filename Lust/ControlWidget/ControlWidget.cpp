@@ -13,6 +13,12 @@ ControlWidget::ControlWidget(QWidget* parent)
     connect(ui->saveConfigButton,&QPushButton::clicked,this,&ControlWidget::onSaveConfigClicked);
     connect(ui->loadConfigButton,&QPushButton::clicked,this,&ControlWidget::onLoadConfigClicked);
     connect(ui->enumerationCameras,&QListWidget::currentRowChanged,this,&ControlWidget::onCamerasListCurrentRowChanged);
+    connect(
+        ui->serverConnectionButton,
+        &QPushButton::clicked,
+        this,
+        &ControlWidget::onDetectionServerButtonClicked
+    );
 
     //ui->connectionButton->setEnabled(false);
 
@@ -158,4 +164,79 @@ CMCameraMetaInfo ControlWidget::getCameraInfo(int index)
         return CMCameraMetaInfo();
     }
     return cameraMetaInfos.at(index);
+}
+
+void ControlWidget::onDetectionServerButtonClicked()
+{
+    if(detectionServerConnected_)
+    {
+        emit detectionServerDisconnectRequested();
+        return;
+    }
+
+    const QString host =
+        ui->serverHostEdit->text().trimmed();
+
+    if(host.isEmpty())
+    {
+        ui->serverStateLabel->setText(
+            tr("服务器地址不能为空")
+        );
+        return;
+    }
+
+    const quint16 port =
+        static_cast<quint16>(
+            ui->serverPortSpinBox->value()
+        );
+
+    emit detectionServerConnectRequested(host, port);
+}
+
+void ControlWidget::setDetectionServerConnected(
+    bool connected
+)
+{
+    detectionServerConnected_ = connected;
+
+    ui->serverConnectionButton->setEnabled(true);
+    ui->serverHostEdit->setEnabled(!connected);
+    ui->serverPortSpinBox->setEnabled(!connected);
+
+    if(connected)
+    {
+        ui->serverConnectionButton->setText(
+            tr("断开检测服务")
+        );
+        ui->serverStateLabel->setText(
+            tr("已连接")
+        );
+        return;
+    }
+
+    ui->serverConnectionButton->setText(
+        tr("连接检测服务")
+    );
+    ui->serverStateLabel->setText(
+        tr("未连接")
+    );
+}
+
+void ControlWidget::setDetectionServerBusy(
+    bool busy,
+    const QString& statusText
+)
+{
+    ui->serverConnectionButton->setEnabled(!busy);
+    ui->serverHostEdit->setEnabled(
+        !busy && !detectionServerConnected_
+    );
+    ui->serverPortSpinBox->setEnabled(
+        !busy && !detectionServerConnected_
+    );
+
+    if(!statusText.isEmpty())
+    {
+        ui->serverStateLabel->setText(statusText);
+    }
 }
