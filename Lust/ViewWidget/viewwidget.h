@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QWidget>
 #include <QDebug>
+#include <QByteArray>
 #include "viewwidgetui.h"
 #include "../Listener.h"
 #include "../CameraInterface/CameraContext.h"
@@ -17,16 +18,18 @@ public:
     ViewWidget(ControlWidget* controlWidget, QWidget* parent = nullptr);
     ~ViewWidget();
     void onRespondMessage(int message) override;
-
+    void setPacketPublishingEnabled(bool enabled);
 signals:
     void SigUpdateErrorInfo(QString info);
-
+    void sigPacketReady(const QByteArray& packet);
+    void sigPacketError(const QString& message);
 public slots:
     void onGrabbingButtonClicked();
 
 private:
     void setStartGrabbingButtonState(bool checked);
     void stopImageProcess();
+
 private:
     AcquireImageProcess* imageProcessThread;
     ViewWidgetUI* ui;

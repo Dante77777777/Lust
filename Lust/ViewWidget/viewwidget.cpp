@@ -10,6 +10,8 @@ ViewWidget::ViewWidget(ControlWidget* controlWidget, QWidget* parent)
     ui->setupUI(this);
     connect(ui->grabbingButton,&QPushButton::clicked,this,&ViewWidget::onGrabbingButtonClicked);
     connect(imageProcessThread,&AcquireImageProcess::sigUpdateImage,ui->imageView,&GraphicsView::setImage,Qt::QueuedConnection);
+    connect(imageProcessThread,&AcquireImageProcess::sigPacketReady,this,&ViewWidget::sigPacketReady,Qt::QueuedConnection);
+    connect(imageProcessThread,&AcquireImageProcess::sigPacketError,this,&ViewWidget::sigPacketError,Qt::QueuedConnection);
 
     ListenerManager::getInstance()->registerMessage(MESSAGE::CAMERA_CONNECT
                                                     | MESSAGE::CAMERA_DISCONNECT
@@ -79,6 +81,11 @@ void ViewWidget::onRespondMessage(int message)
         stopImageProcess();
         setStartGrabbingButtonState(true);
     }
+}
+
+void ViewWidget::setPacketPublishingEnabled(bool enabled)
+{
+    imageProcessThread->setPublishingEnabled(enabled);
 }
 
 void ViewWidget::setStartGrabbingButtonState(bool checked)

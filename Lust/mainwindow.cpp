@@ -8,11 +8,17 @@ MainWindow::MainWindow(QWidget *parent)
     , viewWidget(new ViewWidget(controlWidget,this))
     , paramWidget(new ParamWidget(controlWidget,this))
     , loadingDialog(new LoadingDialog(this))
+    , tcpClient(new TcpClient(this))
 {
     setupUI();
+    setupNetworkConnections();
 }
 
-MainWindow::~MainWindow() {}
+MainWindow::~MainWindow()
+{
+    viewWidget->setPacketPublishingEnabled(false);
+    tcpClient->disconnectFromServer();
+}
 
 void MainWindow::setupUI()
 {
@@ -50,7 +56,82 @@ void MainWindow::setupUI()
     statusBar()->showMessage(tr("就绪"));
 }
 
+void MainWindow::setupNetworkConnections()
+{
+    connect(
+        controlWidget,
+        &ControlWidget::detectionServerConnectRequested,
+        this,
+        &MainWindow::connectDetectionServer
+    );
+
+    connect(
+        controlWidget,
+        &ControlWidget::detectionServerDisconnectRequested,
+        this,
+        &MainWindow::disconnectDetectionServer
+    );
+
+    /*
+     * 数据包先通过 QueuedConnection 到达主线程的
+     * ViewWidget，再在主线程调用 TcpClient。
+     */
+    connect(viewWidget,&ViewWidget::sigPacketReady,tcpClient,[this](const QByteArray& packet){
+        tcpClient->sendPacket(packet);
+    });
+
+    connect(viewWidget,&ViewWidget::sigPacketError,this,[this](const QString& errorMessage){
+        statusBar()->showMessage(tr("图像编码失败：%1").arg(errorMessage),5000);
+    });
+
+    connect(tcpClient,&TcpClient::connected,this,[this](){
+        controlWidget->setDetectionServerConnected(true);
+        viewWidget->setPacketPublishingEnabled(true);
+        statusBar()->showMessage(tr("检测服务器已连接"));
+    });
+
+    connect(tcpClient,&TcpClient::disconnected,this,[this](){
+        controlWidget->setDetectionServerConnected(false);
+        viewWidget->setPacketPublishingEnabled(false);
+        statusBar()->showMessage(tr("检测服务器已断开"));
+    });
+
+    connect(tcpClient,&TcpClient::connectionError,this,[this](const QString& errorMessage){
+        controlWidget->setDetectionServerConnected(false);
+        viewWidget->setPacketPublishingEnabled(false);
+        statusBar()->showMessage(tr("检测服务器连接失败：%1").arg(errorMessage),5000);
+    });
+
+    connect(tcpClient,&TcpClient::sendError,this,[this](const QString& errorMessage){
+        statusBar()->showMessage(tr("图像发送失败：%1").arg(errorMessage),5000);
+    });
+}
+
 void MainWindow::testModel()
 {
 
+}
+
+
+void MainWindow::connectDetectionServer(const QString& host, quint16 port)
+{
+    viewWidget->setPacketPublishingEnabled(false);
+    controlWidget->setDetectionServerBusy(
+        true,
+        tr("正在连接...")
+    );
+    statusBar()->showMessage(tr("正在连接检测服务器 %1:%2...").arg(host).arg(port));
+
+    tcpClient->connectToServer(host,port);
+}
+
+
+void MainWindow::disconnectDetectionServer()
+{
+    viewWidget->setPacketPublishingEnabled(false);
+    controlWidget->setDetectionServerBusy(
+        true,
+        tr("正在断开...")
+    );
+    tcpClient->disconnectFromServer();
 }
