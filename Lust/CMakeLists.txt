@@ -173,6 +173,56 @@ if(BUILD_TESTING)
         COMMAND CameraContextImageTest
     )
 
+    qt_add_executable(AcquireImageProcessTest
+        tests/AcquireImageProcessTest.cpp
+
+        ViewWidget/AcquireImageProcess.h
+        ViewWidget/AcquireImageProcess.cpp
+
+        CameraInterface/CameraContext.h
+        CameraInterface/CameraContext.cpp
+        CameraInterface/CameraInterface.h
+        CameraInterface/CameraImageQueue.h
+        CameraInterface/CameraImageQueue.cpp
+        CameraInterface/CameraError.h
+        CameraInterface/CMCameraMetaInfo.h
+        CameraInterface/CMCameraParam.h
+
+        CameraFactory/CameraFactory.h
+        CameraFactory/CameraFactory.cpp
+        CameraFactory/VirtualCamera.h
+        CameraFactory/VirtualCamera.cpp
+
+        ParseUiJson/ParseUiJson.h
+        ParseUiJson/ParseUiJson.cpp
+
+        Protocol/FrameProtocol.h
+        Protocol/FrameProtocol.cpp
+        Protocol/ImagePacketEncoder.h
+        Protocol/ImagePacketEncoder.cpp
+
+        Utils/ImageConver.h
+    )
+
+    target_include_directories(AcquireImageProcessTest
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}
+            ${OpenCV_INCLUDE_DIRS}
+    )
+
+    target_link_libraries(AcquireImageProcessTest
+        PRIVATE
+            Qt6::Core
+            Qt6::Widgets
+            Qt6::Test
+            ${OpenCV_LIBS}
+    )
+
+    add_test(
+        NAME AcquireImageProcessTest
+        COMMAND AcquireImageProcessTest
+    )
+
     qt_add_executable(FrameProtocolTest
         tests/FrameProtocolTest.cpp
 
