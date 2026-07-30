@@ -83,6 +83,8 @@ qt_add_executable(Lust
 
     Transport/TcpClient.h
     Transport/TcpClient.cpp
+    Transport/ResponseStreamDecoder.h
+    Transport/ResponseStreamDecoder.cpp
 
     Utils/ImageConver.h
 
@@ -323,6 +325,32 @@ if(BUILD_TESTING)
     add_test(
         NAME TcpClientTest
         COMMAND TcpClientTest
+    )
+
+    qt_add_executable(ResponseStreamDecoderTest
+        tests/ResponseStreamDecoderTest.cpp
+
+        Transport/ResponseStreamDecoder.h
+        Transport/ResponseStreamDecoder.cpp
+
+        Protocol/FrameProtocol.h
+        Protocol/FrameProtocol.cpp
+    )
+
+    target_include_directories(ResponseStreamDecoderTest
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    target_link_libraries(ResponseStreamDecoderTest
+        PRIVATE
+            Qt6::Core
+            Qt6::Test
+    )
+
+    add_test(
+        NAME ResponseStreamDecoderTest
+        COMMAND ResponseStreamDecoderTest
     )
 endif()
 
