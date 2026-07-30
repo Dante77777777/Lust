@@ -199,7 +199,8 @@ void MainWindow::setupNetworkConnections()
      * 数据包先通过 QueuedConnection 到达主线程的
      * ViewWidget，再在主线程调用 TcpClient。
      */
-    connect(viewWidget,&ViewWidget::sigPacketReady,tcpClient,[this](const QByteArray& packet){
+    connect(viewWidget,&ViewWidget::sigPacketReady,tcpClient,[this](quint64 sequence, const QByteArray& packet){
+        Q_UNUSED(sequence);
         tcpClient->sendPacket(packet);
     });
 

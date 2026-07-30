@@ -98,7 +98,7 @@ void AcquireImageProcess::run()
             emit sigPacketError(errorMessage);
             continue;
         }
-        emit sigPacketReady(packet);
+        emit sigPacketReady(sequence, packet);
     }
 
 }

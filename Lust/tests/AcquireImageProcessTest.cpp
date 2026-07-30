@@ -131,8 +131,11 @@ void AcquireImageProcessTest::
 
     for(int index = 0; index < 2; ++index)
     {
+        const quint64 emittedSequence =
+            packetSpy.at(index).at(0).toULongLong();
+
         QByteArray receiveBuffer =
-            packetSpy.at(index).at(0).toByteArray();
+            packetSpy.at(index).at(1).toByteArray();
 
         FrameProtocol::FrameHeader header;
         QByteArray payload;
@@ -152,9 +155,14 @@ void AcquireImageProcessTest::
 
         QVERIFY(receiveBuffer.isEmpty());
         QVERIFY(!payload.isEmpty());
+
+        QCOMPARE(
+            emittedSequence,
+            static_cast<quint64>(index)
+        );
         QCOMPARE(
             header.sequence,
-            static_cast<quint64>(index)
+            emittedSequence
         );
         QVERIFY(header.timestampMs > 0);
         QCOMPARE(header.width, 512U);

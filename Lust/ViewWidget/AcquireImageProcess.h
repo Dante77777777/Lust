@@ -25,7 +25,7 @@ public:
     bool isPacketPublishingEnabled() const noexcept;
 signals:
     void sigUpdateImage(const QImage& image);
-    void sigPacketReady(const QByteArray& packet);
+    void sigPacketReady(quint64 sequence, const QByteArray& packet);
     void sigPacketError(const QString& errorMessage);
 protected:
     void run() override;

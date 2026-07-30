@@ -21,7 +21,7 @@ public:
     void setPacketPublishingEnabled(bool enabled);
 signals:
     void SigUpdateErrorInfo(QString info);
-    void sigPacketReady(const QByteArray& packet);
+    void sigPacketReady(quint64 sequence, const QByteArray& packet);
     void sigPacketError(const QString& message);
 public slots:
     void onGrabbingButtonClicked();
