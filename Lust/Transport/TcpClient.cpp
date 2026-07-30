@@ -10,11 +10,24 @@ TcpClient::TcpClient(QObject* parent)
 
     connect(socket_,&QTcpSocket::stateChanged,this,&TcpClient::stateChanged);
 
-    connect(socket_,&QTcpSocket::errorOccurred,this,[this](){
+    connect(socket_,&QTcpSocket::errorOccurred,this,[this](QAbstractSocket::SocketError socketError){
+        if(socketError == QAbstractSocket::RemoteHostClosedError)
+        {
+            return ;
+        }
+
         emit connectionError(socket_->errorString());
     });
 
     connect(socket_,&QTcpSocket::bytesWritten,this,&TcpClient::bytesWritten);
+
+    connect(socket_,&QTcpSocket::readyRead,this,[this](){
+        const QByteArray bytes = socket_->readAll();
+        if(!bytes.isEmpty())
+        {
+            emit bytesReceived(bytes);
+        }
+    });
 }
 
 void TcpClient::connectToServer(const QString& host, quint16 port)

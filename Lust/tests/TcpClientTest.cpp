@@ -20,6 +20,7 @@ private slots:
     void sendsCompleteProtocolPacket();
     void preservesPacketOrder();
     void rejectsPacketLargerThanPendingLimit();
+    void receivesServerBytesWithoutLoss();
 };
 
 namespace
@@ -164,6 +165,10 @@ void TcpClientTest::reportsRemoteDisconnect()
         &client,
         &TcpClient::disconnected
     );
+    QSignalSpy errorSpy(
+        &client,
+        &TcpClient::connectionError
+    );
 
     client.connectToServer(
         QStringLiteral("127.0.0.1"),
@@ -195,6 +200,7 @@ void TcpClientTest::reportsRemoteDisconnect()
         !client.isConnected(),
         2000
     );
+    QCOMPARE(errorSpy.count(), 0);
 
     peerSocket->deleteLater();
 }
@@ -425,6 +431,97 @@ void TcpClientTest::rejectsPacketLargerThanPendingLimit()
     client.disconnectFromServer();
     peerSocket->deleteLater();
 }
+
+
+void TcpClientTest::receivesServerBytesWithoutLoss()
+{
+    QTcpServer server;
+    QVERIFY(
+        server.listen(QHostAddress::LocalHost, 0)
+    );
+
+    TcpClient client;
+    QSignalSpy connectedSpy(
+        &client,
+        &TcpClient::connected
+    );
+    QSignalSpy receivedSpy(
+        &client,
+        &TcpClient::bytesReceived
+    );
+
+    client.connectToServer(
+        QStringLiteral("127.0.0.1"),
+        server.serverPort()
+    );
+
+    QTRY_COMPARE_WITH_TIMEOUT(
+        connectedSpy.count(),
+        1,
+        2000
+    );
+    QTRY_VERIFY_WITH_TIMEOUT(
+        server.hasPendingConnections(),
+        2000
+    );
+
+    QTcpSocket* peerSocket =
+        server.nextPendingConnection();
+    QVERIFY(peerSocket != nullptr);
+
+    const QByteArray firstBytes(
+        "response-header-fragment"
+    );
+    const QByteArray secondBytes(
+        "-and-json-payload"
+    );
+
+    QCOMPARE(
+        peerSocket->write(firstBytes),
+        static_cast<qint64>(firstBytes.size())
+    );
+
+    QTRY_VERIFY_WITH_TIMEOUT(
+        receivedSpy.count() >= 1,
+        2000
+    );
+
+    QCOMPARE(
+        peerSocket->write(secondBytes),
+        static_cast<qint64>(secondBytes.size())
+    );
+
+    QByteArray receivedBytes;
+    QTRY_VERIFY_WITH_TIMEOUT(
+        ([&receivedSpy, &receivedBytes,
+          &firstBytes, &secondBytes]()
+            {
+                receivedBytes.clear();
+
+                for(const QList<QVariant>& arguments
+                    : receivedSpy)
+                {
+                    receivedBytes.append(
+                        arguments.at(0).toByteArray()
+                    );
+                }
+
+                return receivedBytes.size()
+                    >= firstBytes.size()
+                        + secondBytes.size();
+            }()),
+        2000
+    );
+
+    QCOMPARE(
+        receivedBytes,
+        firstBytes + secondBytes
+    );
+
+    client.disconnectFromServer();
+    peerSocket->deleteLater();
+}
+
 
 QTEST_GUILESS_MAIN(TcpClientTest)
 

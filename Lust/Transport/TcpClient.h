@@ -42,6 +42,10 @@ signals:
     // 数据实际写入操作系统网络层
     void bytesWritten(qint64 byteCount);
 
+    // 收到一段服务端 TCP 字节。
+    // 一次信号不保证对应一个完整协议包。
+    void bytesReceived(const QByteArray& bytes);
+
     void sendError(const QString& errorMessage);
 
 private:
