@@ -394,6 +394,8 @@ if(BUILD_TESTING)
         Transport/TcpClient.cpp
         Transport/ResponseStreamDecoder.h
         Transport/ResponseStreamDecoder.cpp
+        Transport/InferenceRequestTracker.h
+        Transport/InferenceRequestTracker.cpp
 
         Protocol/FrameProtocol.h
         Protocol/FrameProtocol.cpp

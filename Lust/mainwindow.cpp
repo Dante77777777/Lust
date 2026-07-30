@@ -15,6 +15,13 @@ MainWindow::MainWindow(QWidget *parent)
     , responseDispatcher(
           new InferenceResponseDispatcher(this)
       )
+    , requestTracker(
+          new InferenceRequestTracker(
+              InferenceRequestTracker::
+                  DEFAULT_TIMEOUT_MS,
+              this
+          )
+      )
 {
     setupUI();
     setupNetworkConnections();
@@ -128,6 +135,12 @@ void MainWindow::setupNetworkConnections()
             const InferenceResponseCodec::
                 InferenceResultPayload& result)
         {
+            if(!requestTracker->
+                completeRequest(sequence))
+            {
+                return;
+            }
+
             statusBar()->showMessage(
                 tr(
                     "检测结果 #%1：%2，"
@@ -153,6 +166,16 @@ void MainWindow::setupNetworkConnections()
             const InferenceResponseCodec::
                 InferenceErrorPayload& error)
         {
+            /*
+             * InferenceError 也是服务端对该 sequence
+             * 的正式响应，不能继续等待超时。
+             */
+            if(!requestTracker->
+                completeRequest(sequence))
+            {
+                return;
+            }
+
             statusBar()->showMessage(
                 tr("检测失败 #%1：[%2] %3")
                     .arg(sequence)
@@ -172,10 +195,53 @@ void MainWindow::setupNetworkConnections()
             quint64 sequence,
             const QString& errorMessage)
         {
+            /*
+             * 业务响应虽然无效，但服务端已经返回了这个
+             * sequence，不能继续占用待处理集合。
+             */
+            if(!requestTracker->
+                completeRequest(sequence))
+            {
+                return;
+            }
+
             statusBar()->showMessage(
                 tr("无效检测响应 #%1：%2")
                     .arg(sequence)
                     .arg(errorMessage),
+                5000
+            );
+        }
+    );
+
+    connect(
+        requestTracker,
+        &InferenceRequestTracker::
+            sigRequestTimedOut,
+        this,
+        [this](
+            quint64 sequence,
+            qint64 elapsedMs)
+        {
+            statusBar()->showMessage(
+                tr("检测请求 #%1 超时（%2 ms）")
+                    .arg(sequence)
+                    .arg(elapsedMs),
+                5000
+            );
+        }
+    );
+
+    connect(
+        requestTracker,
+        &InferenceRequestTracker::
+            sigUnknownResponse,
+        this,
+        [this](quint64 sequence)
+        {
+            statusBar()->showMessage(
+                tr("收到未知、重复或迟到响应 #%1")
+                    .arg(sequence),
                 5000
             );
         }
@@ -199,10 +265,62 @@ void MainWindow::setupNetworkConnections()
      * 数据包先通过 QueuedConnection 到达主线程的
      * ViewWidget，再在主线程调用 TcpClient。
      */
-    connect(viewWidget,&ViewWidget::sigPacketReady,tcpClient,[this](quint64 sequence, const QByteArray& packet){
-        Q_UNUSED(sequence);
-        tcpClient->sendPacket(packet);
-    });
+    connect(
+        viewWidget,
+        &ViewWidget::sigPacketReady,
+        tcpClient,
+        [this](
+            quint64 sequence,
+            const QByteArray& packet)
+        {
+            if(requestTracker->contains(sequence))
+            {
+                statusBar()->showMessage(
+                    tr("拒绝重复检测请求 #%1")
+                        .arg(sequence),
+                    5000
+                );
+                return;
+            }
+
+            if(!requestTracker->canAcceptRequest())
+            {
+                statusBar()->showMessage(
+                    tr(
+                        "待处理检测请求已达到上限，"
+                        "丢弃帧 #%1"
+                    ).arg(sequence),
+                    5000
+                );
+                return;
+            }
+
+            if(!tcpClient->sendPacket(packet))
+            {
+                return;
+            }
+
+            /*
+             * 只有完整数据包成功进入 Qt 的 TCP
+             * 发送缓冲区后才登记为待响应请求。
+             */
+            if(!requestTracker->
+                recordRequest(sequence))
+            {
+                statusBar()->showMessage(
+                    tr("检测请求 #%1 登记失败")
+                        .arg(sequence),
+                    5000
+                );
+
+                /*
+                 * 数据已经发送但无法跟踪，继续使用连接
+                 * 会导致响应归属不明确。
+                 */
+                tcpClient->disconnectFromServer();
+            }
+        }
+    );
 
     connect(viewWidget,&ViewWidget::sigPacketError,this,[this](const QString& errorMessage){
         statusBar()->showMessage(tr("图像编码失败：%1").arg(errorMessage),5000);
@@ -221,6 +339,7 @@ void MainWindow::setupNetworkConnections()
         [this]()
         {
             responseStreamDecoder->reset();
+            requestTracker->clear();
             controlWidget->
                 setDetectionServerConnected(false);
             viewWidget->
@@ -238,6 +357,7 @@ void MainWindow::setupNetworkConnections()
         [this](const QString& errorMessage)
         {
             responseStreamDecoder->reset();
+            requestTracker->clear();
             controlWidget->
                 setDetectionServerConnected(false);
             viewWidget->
@@ -264,6 +384,7 @@ void MainWindow::testModel()
 void MainWindow::connectDetectionServer(const QString& host, quint16 port)
 {
     responseStreamDecoder->reset();
+    requestTracker->clear();
     viewWidget->setPacketPublishingEnabled(false);
     controlWidget->setDetectionServerBusy(
         true,

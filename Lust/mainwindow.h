@@ -11,6 +11,7 @@
 #include "ParamWidget/ParamWidget.h"
 #include "LoadingDialog/LoadingDialog.h"
 #include "Protocol/InferenceResponseDispatcher.h"
+#include "Transport/InferenceRequestTracker.h"
 #include "Transport/ResponseStreamDecoder.h"
 #include "Transport/TcpClient.h"
 
@@ -37,5 +38,6 @@ private:
     TcpClient* tcpClient;
     ResponseStreamDecoder* responseStreamDecoder;
     InferenceResponseDispatcher* responseDispatcher;
+    InferenceRequestTracker* requestTracker;
 };
 #endif // MAINWINDOW_H

@@ -7,6 +7,7 @@
 #include "Protocol/FrameProtocol.h"
 #include "Protocol/InferenceResponseCodec.h"
 #include "Protocol/InferenceResponseDispatcher.h"
+#include "Transport/InferenceRequestTracker.h"
 #include "Transport/ResponseStreamDecoder.h"
 #include "Transport/TcpClient.h"
 
@@ -112,6 +113,9 @@ receivesFragmentedInferenceResult()
     TcpClient client;
     ResponseStreamDecoder decoder;
     InferenceResponseDispatcher dispatcher;
+    InferenceRequestTracker tracker(1000);
+
+    int acceptedResultCount = 0;
 
     connect(
         &client,
@@ -125,6 +129,22 @@ receivesFragmentedInferenceResult()
         &dispatcher,
         &InferenceResponseDispatcher::dispatch
     );
+    connect(
+        &dispatcher,
+        &InferenceResponseDispatcher::
+            sigInferenceResultReceived,
+        &tracker,
+        [&tracker, &acceptedResultCount](
+            quint64 sequence,
+            const InferenceResponseCodec::
+                InferenceResultPayload&)
+        {
+            if(tracker.completeRequest(sequence))
+            {
+                ++acceptedResultCount;
+            }
+        }
+    );
 
     QSignalSpy resultSpy(
         &dispatcher,
@@ -135,6 +155,16 @@ receivesFragmentedInferenceResult()
         &dispatcher,
         &InferenceResponseDispatcher::
             sigResponseRejected
+    );
+    QSignalSpy completedSpy(
+        &tracker,
+        &InferenceRequestTracker::
+            sigRequestCompleted
+    );
+    QSignalSpy unknownSpy(
+        &tracker,
+        &InferenceRequestTracker::
+            sigUnknownResponse
     );
 
     QTcpSocket* peerSocket =
@@ -148,6 +178,8 @@ receivesFragmentedInferenceResult()
             0.64
         );
     QVERIFY(!packet.isEmpty());
+    QVERIFY(tracker.recordRequest(9001));
+    QCOMPARE(tracker.pendingCount(), 1);
 
     QCOMPARE(
         peerSocket->write(packet.left(17)),
@@ -176,6 +208,10 @@ receivesFragmentedInferenceResult()
 
     QCOMPARE(rejectedSpy.count(), 0);
     QCOMPARE(decoder.bufferedBytes(), 0);
+    QCOMPARE(tracker.pendingCount(), 0);
+    QCOMPARE(completedSpy.count(), 1);
+    QCOMPARE(unknownSpy.count(), 0);
+    QCOMPARE(acceptedResultCount, 1);
     QCOMPARE(
         resultSpy.at(0).at(0).toULongLong(),
         9001
@@ -194,6 +230,31 @@ receivesFragmentedInferenceResult()
     QCOMPARE(result.inferenceMs, 21);
     QCOMPARE(result.defectArea, 84);
 
+    /*
+     * 同一响应再次到达时，Dispatcher 仍能解码，
+     * 但请求跟踪器会把它识别为重复响应。
+     */
+    QCOMPARE(
+        peerSocket->write(packet),
+        static_cast<qint64>(packet.size())
+    );
+    QVERIFY(peerSocket->flush());
+
+    QTRY_COMPARE_WITH_TIMEOUT(
+        resultSpy.count(),
+        2,
+        2000
+    );
+    QTRY_COMPARE_WITH_TIMEOUT(
+        unknownSpy.count(),
+        1,
+        2000
+    );
+
+    QCOMPARE(completedSpy.count(), 1);
+    QCOMPARE(acceptedResultCount, 1);
+    QCOMPARE(tracker.pendingCount(), 0);
+
     client.disconnectFromServer();
     peerSocket->deleteLater();
 }
@@ -205,6 +266,7 @@ receivesStickyResultAndError()
     TcpClient client;
     ResponseStreamDecoder decoder;
     InferenceResponseDispatcher dispatcher;
+    InferenceRequestTracker tracker(1000);
 
     connect(
         &client,
@@ -218,6 +280,32 @@ receivesStickyResultAndError()
         &dispatcher,
         &InferenceResponseDispatcher::dispatch
     );
+    connect(
+        &dispatcher,
+        &InferenceResponseDispatcher::
+            sigInferenceResultReceived,
+        &tracker,
+        [&tracker](
+            quint64 sequence,
+            const InferenceResponseCodec::
+                InferenceResultPayload&)
+        {
+            tracker.completeRequest(sequence);
+        }
+    );
+    connect(
+        &dispatcher,
+        &InferenceResponseDispatcher::
+            sigInferenceErrorReceived,
+        &tracker,
+        [&tracker](
+            quint64 sequence,
+            const InferenceResponseCodec::
+                InferenceErrorPayload&)
+        {
+            tracker.completeRequest(sequence);
+        }
+    );
 
     QSignalSpy resultSpy(
         &dispatcher,
@@ -228,6 +316,16 @@ receivesStickyResultAndError()
         &dispatcher,
         &InferenceResponseDispatcher::
             sigInferenceErrorReceived
+    );
+    QSignalSpy completedSpy(
+        &tracker,
+        &InferenceRequestTracker::
+            sigRequestCompleted
+    );
+    QSignalSpy unknownSpy(
+        &tracker,
+        &InferenceRequestTracker::
+            sigUnknownResponse
     );
 
     QTcpSocket* peerSocket =
@@ -245,6 +343,9 @@ receivesStickyResultAndError()
             QStringLiteral("INFERENCE_FAILED")
         );
     QVERIFY(!stickyBytes.isEmpty());
+    QVERIFY(tracker.recordRequest(9100));
+    QVERIFY(tracker.recordRequest(9101));
+    QCOMPARE(tracker.pendingCount(), 2);
 
     QCOMPARE(
         peerSocket->write(stickyBytes),
@@ -272,6 +373,9 @@ receivesStickyResultAndError()
         9101
     );
     QCOMPARE(decoder.bufferedBytes(), 0);
+    QCOMPARE(tracker.pendingCount(), 0);
+    QCOMPARE(completedSpy.count(), 2);
+    QCOMPARE(unknownSpy.count(), 0);
 
     const auto error = qvariant_cast<
         InferenceResponseCodec::
