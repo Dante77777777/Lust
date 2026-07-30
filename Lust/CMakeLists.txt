@@ -87,6 +87,8 @@ qt_add_executable(Lust
     Transport/TcpClient.cpp
     Transport/ResponseStreamDecoder.h
     Transport/ResponseStreamDecoder.cpp
+    Transport/InferenceRequestTracker.h
+    Transport/InferenceRequestTracker.cpp
 
     Utils/ImageConver.h
 
@@ -416,6 +418,29 @@ if(BUILD_TESTING)
     add_test(
         NAME TcpResponsePipelineTest
         COMMAND TcpResponsePipelineTest
+    )
+
+    qt_add_executable(InferenceRequestTrackerTest
+        tests/InferenceRequestTrackerTest.cpp
+
+        Transport/InferenceRequestTracker.h
+        Transport/InferenceRequestTracker.cpp
+    )
+
+    target_include_directories(InferenceRequestTrackerTest
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    target_link_libraries(InferenceRequestTrackerTest
+        PRIVATE
+            Qt6::Core
+            Qt6::Test
+    )
+
+    add_test(
+        NAME InferenceRequestTrackerTest
+        COMMAND InferenceRequestTrackerTest
     )
 endif()
 
