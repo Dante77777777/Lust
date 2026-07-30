@@ -80,6 +80,8 @@ qt_add_executable(Lust
     Protocol/ImagePacketEncoder.cpp
     Protocol/InferenceResponseCodec.h
     Protocol/InferenceResponseCodec.cpp
+    Protocol/InferenceResponseDispatcher.h
+    Protocol/InferenceResponseDispatcher.cpp
 
     Transport/TcpClient.h
     Transport/TcpClient.cpp
@@ -351,6 +353,36 @@ if(BUILD_TESTING)
     add_test(
         NAME ResponseStreamDecoderTest
         COMMAND ResponseStreamDecoderTest
+    )
+
+    qt_add_executable(InferenceResponseDispatcherTest
+        tests/InferenceResponseDispatcherTest.cpp
+
+        Protocol/InferenceResponseCodec.h
+        Protocol/InferenceResponseCodec.cpp
+        Protocol/InferenceResponseDispatcher.h
+        Protocol/InferenceResponseDispatcher.cpp
+
+        Protocol/FrameProtocol.h
+        Protocol/FrameProtocol.cpp
+        Transport/ResponseStreamDecoder.h
+        Transport/ResponseStreamDecoder.cpp
+    )
+
+    target_include_directories(InferenceResponseDispatcherTest
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    target_link_libraries(InferenceResponseDispatcherTest
+        PRIVATE
+            Qt6::Core
+            Qt6::Test
+    )
+
+    add_test(
+        NAME InferenceResponseDispatcherTest
+        COMMAND InferenceResponseDispatcherTest
     )
 endif()
 

@@ -1,6 +1,7 @@
 #ifndef INFERENCERESPONSECODEC_H
 #define INFERENCERESPONSECODEC_H
 
+#include <QMetaType>
 #include <QByteArray>
 #include <QString>
 
@@ -35,5 +36,13 @@ bool decodeError(const QByteArray& jsonBytes, InferenceErrorPayload* result, QSt
 
 
 }
+
+Q_DECLARE_METATYPE(
+    InferenceResponseCodec::InferenceResultPayload
+    )
+
+Q_DECLARE_METATYPE(
+    InferenceResponseCodec::InferenceErrorPayload
+    )
 
 #endif
