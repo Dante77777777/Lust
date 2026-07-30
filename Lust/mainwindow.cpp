@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 
+#include <QDateTime>
 #include <QStatusBar>
 
 MainWindow::MainWindow(QWidget *parent)
@@ -215,6 +216,26 @@ void MainWindow::setupNetworkConnections()
     );
 
     connect(
+        responseDispatcher,
+        &InferenceResponseDispatcher::
+            sigStopAcquisitionRequested,
+        this,
+        [this](quint64 requestSequence)
+        {
+            pendingStopRequestSequence_ = requestSequence;
+            if(viewWidget->isStreamActive())
+            {
+                statusBar()->showMessage(
+                    tr("检测服务器请求停止相机采集"));
+                viewWidget->stopAcquisitionFromServer();
+                return;
+            }
+
+            announceStreamStop();
+        }
+    );
+
+    connect(
         requestTracker,
         &InferenceRequestTracker::
             sigRequestTimedOut,
@@ -326,8 +347,26 @@ void MainWindow::setupNetworkConnections()
         statusBar()->showMessage(tr("图像编码失败：%1").arg(errorMessage),5000);
     });
 
+    connect(
+        viewWidget,
+        &ViewWidget::sigStreamStarted,
+        this,
+        &MainWindow::announceStreamStart
+    );
+
+    connect(
+        viewWidget,
+        &ViewWidget::sigStreamStopped,
+        this,
+        &MainWindow::announceStreamStop
+    );
+
     connect(tcpClient,&TcpClient::connected,this,[this](){
         controlWidget->setDetectionServerConnected(true);
+        if(viewWidget->isStreamActive())
+        {
+            announceStreamStart();
+        }
         viewWidget->setPacketPublishingEnabled(true);
         statusBar()->showMessage(tr("检测服务器已连接"));
     });
@@ -338,6 +377,8 @@ void MainWindow::setupNetworkConnections()
         this,
         [this]()
         {
+            activeStreamSequence_ = 0;
+            pendingStopRequestSequence_ = 0;
             responseStreamDecoder->reset();
             requestTracker->clear();
             controlWidget->
@@ -356,6 +397,8 @@ void MainWindow::setupNetworkConnections()
         this,
         [this](const QString& errorMessage)
         {
+            activeStreamSequence_ = 0;
+            pendingStopRequestSequence_ = 0;
             responseStreamDecoder->reset();
             requestTracker->clear();
             controlWidget->
@@ -373,6 +416,71 @@ void MainWindow::setupNetworkConnections()
     connect(tcpClient,&TcpClient::sendError,this,[this](const QString& errorMessage){
         statusBar()->showMessage(tr("图像发送失败：%1").arg(errorMessage),5000);
     });
+}
+
+bool MainWindow::sendStreamControlPacket(
+    FrameProtocol::MessageType messageType,
+    quint64 sequence)
+{
+    if(!tcpClient->isConnected() || sequence == 0)
+    {
+        return false;
+    }
+
+    FrameProtocol::FrameHeader header;
+    header.messageType = messageType;
+    header.pixelFormat = FrameProtocol::PixelFormat::Unknown;
+    header.sequence = sequence;
+    header.timestampMs = static_cast<quint64>(
+        QDateTime::currentMSecsSinceEpoch());
+
+    const QByteArray packet =
+        FrameProtocol::encodePacket(header, {});
+    if(packet.isEmpty())
+    {
+        statusBar()->showMessage(
+            tr("流控制消息编码失败"),
+            5000);
+        return false;
+    }
+    return tcpClient->sendPacket(packet);
+}
+
+void MainWindow::announceStreamStart()
+{
+    if(!tcpClient->isConnected())
+    {
+        activeStreamSequence_ = 0;
+        return;
+    }
+
+    quint64 sequence = nextStreamSequence_++;
+    if(sequence == 0)
+    {
+        sequence = nextStreamSequence_++;
+    }
+
+    if(sendStreamControlPacket(
+           FrameProtocol::MessageType::StreamStart,
+           sequence))
+    {
+        activeStreamSequence_ = sequence;
+        pendingStopRequestSequence_ = 0;
+    }
+}
+
+void MainWindow::announceStreamStop()
+{
+    const quint64 sequence =
+        activeStreamSequence_ != 0
+            ? activeStreamSequence_
+            : pendingStopRequestSequence_;
+
+    sendStreamControlPacket(
+        FrameProtocol::MessageType::StreamStop,
+        sequence);
+    activeStreamSequence_ = 0;
+    pendingStopRequestSequence_ = 0;
 }
 
 void MainWindow::testModel()

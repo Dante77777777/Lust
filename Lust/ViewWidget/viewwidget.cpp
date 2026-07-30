@@ -35,27 +35,75 @@ void ViewWidget::onGrabbingButtonClicked()
 {
     qDebug("onGrabbingButtonClicked");
 
-    QString serial = controlWidget_->getCurrentCameraInfo().Serial;
-
-    bool isGrabbing = false;
-    CameraContext::getInstance()->isGrabbing(serial,isGrabbing);
-
-    if(!isGrabbing)
+    if(streamActive_)
     {
-        //connect(imageProcessThread,&AcquireImageProcess::sigUpdateImage,ui->imageView,&GraphicsView::setImage);
-        CHECK_RETURN(CameraContext::getInstance()->startGrabbing(serial));
-        imageProcessThread->setSerial(serial);
-        imageProcessThread->start();
-        ListenerManager::getInstance()->notify(MESSAGE::CAMERA_STARTGRAB);
+        stopAcquisition();
     }
     else
     {
-        //disconnect(imageProcessThread,&AcquireImageProcess::sigUpdateImage,ui->imageView,&GraphicsView::setImage);
-        stopImageProcess();
-        CHECK_RETURN(CameraContext::getInstance()->stopGrabbing(serial));
-
-        ListenerManager::getInstance()->notify(MESSAGE::CAMERA_STOPTGRAB);
+        startAcquisition();
     }
+}
+
+void ViewWidget::stopAcquisitionFromServer()
+{
+    stopAcquisition();
+}
+
+bool ViewWidget::startAcquisition()
+{
+    const QString serial =
+        controlWidget_->getCurrentCameraInfo().Serial;
+    const uint32_t result =
+        CameraContext::getInstance()->startGrabbing(serial);
+    if(result != CHONGMING_OK)
+    {
+        emit SigUpdateErrorInfo(getErrorInfoEn(result));
+        return false;
+    }
+
+    imageProcessThread->setSerial(serial);
+    imageProcessThread->start();
+    setStreamActive(true);
+    ListenerManager::getInstance()->notify(
+        MESSAGE::CAMERA_STARTGRAB);
+    return true;
+}
+
+bool ViewWidget::stopAcquisition()
+{
+    const QString serial =
+        controlWidget_->getCurrentCameraInfo().Serial;
+
+    bool isGrabbing = false;
+    const uint32_t queryResult =
+        CameraContext::getInstance()->isGrabbing(
+            serial,
+            isGrabbing);
+    if(queryResult != CHONGMING_OK)
+    {
+        emit SigUpdateErrorInfo(
+            getErrorInfoEn(queryResult));
+        return false;
+    }
+
+    stopImageProcess();
+    if(isGrabbing)
+    {
+        const uint32_t stopResult =
+            CameraContext::getInstance()->stopGrabbing(serial);
+        if(stopResult != CHONGMING_OK)
+        {
+            emit SigUpdateErrorInfo(
+                getErrorInfoEn(stopResult));
+            return false;
+        }
+    }
+
+    setStreamActive(false);
+    ListenerManager::getInstance()->notify(
+        MESSAGE::CAMERA_STOPTGRAB);
+    return true;
 }
 
 void ViewWidget::onRespondMessage(int message)
@@ -63,12 +111,14 @@ void ViewWidget::onRespondMessage(int message)
     if((message & MESSAGE::CAMERA_DISCONNECT) == MESSAGE::CAMERA_DISCONNECT)
     {
         stopImageProcess();
+        setStreamActive(false);
         ui->imageView->clear();
         setStartGrabbingButtonState(true);
     }
     else if((message & MESSAGE::CAMERA_ENUMRTION) == MESSAGE::CAMERA_ENUMRTION)
     {
         stopImageProcess();
+        setStreamActive(false);
         ui->imageView->clear();
         setStartGrabbingButtonState(true);
     }
@@ -86,6 +136,41 @@ void ViewWidget::onRespondMessage(int message)
 void ViewWidget::setPacketPublishingEnabled(bool enabled)
 {
     imageProcessThread->setPublishingEnabled(enabled);
+}
+
+bool ViewWidget::isStreamActive() const noexcept
+{
+    return streamActive_;
+}
+
+void ViewWidget::setStreamActive(bool active)
+{
+    if(streamActive_ == active)
+    {
+        return;
+    }
+
+    streamActive_ = active;
+    if(active)
+    {
+        emit sigStreamStarted();
+    }
+    else
+    {
+        /*
+         * stopImageProcess() 等待采集线程退出时，主线程事件
+         * 队列中可能仍有最后几帧 sigPacketReady。把 StreamStop
+         * 排在当前已入队帧之后，保证协议中的批次边界不越过
+         * 最后一帧。
+         */
+        QMetaObject::invokeMethod(
+            this,
+            [this]()
+            {
+                emit sigStreamStopped();
+            },
+            Qt::QueuedConnection);
+    }
 }
 
 void ViewWidget::setStartGrabbingButtonState(bool checked)
