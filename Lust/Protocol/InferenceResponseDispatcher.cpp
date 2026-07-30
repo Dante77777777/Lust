@@ -59,6 +59,25 @@ void InferenceResponseDispatcher::dispatch(const ReceivedResponsePacket& packet)
         return;
     }
 
+    if(packet.header.messageType
+        == FrameProtocol::MessageType::StopAcquisitionRequest)
+    {
+        if(!packet.payload.isEmpty()
+            || packet.header.pixelFormat
+                   != FrameProtocol::PixelFormat::Unknown
+            || packet.header.width != 0
+            || packet.header.height != 0)
+        {
+            emit sigResponseRejected(
+                sequence,
+                QStringLiteral(
+                    "Invalid stop acquisition request"));
+            return;
+        }
+
+        emit sigStopAcquisitionRequested(sequence);
+        return;
+    }
 
     emit sigResponseRejected(sequence, QStringLiteral("Unexpected response message type"));
 }

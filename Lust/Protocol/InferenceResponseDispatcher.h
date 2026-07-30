@@ -22,6 +22,8 @@ signals:
 
     void sigInferenceErrorReceived(quint64 sequence, const InferenceResponseCodec::InferenceErrorPayload& error);
 
+    void sigStopAcquisitionRequested(quint64 requestSequence);
+
     void sigResponseRejected(quint64 sequence, const QString& errorMessage);
 };
 

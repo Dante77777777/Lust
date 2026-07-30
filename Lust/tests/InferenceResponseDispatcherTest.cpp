@@ -14,6 +14,8 @@ private slots:
     void decodesInferenceError();
     void rejectsInvalidResultPayload();
     void rejectsInvalidErrorPayload();
+    void acceptsStopAcquisitionRequest();
+    void rejectsInvalidStopAcquisitionRequest();
     void rejectsUnexpectedMessageType();
 };
 
@@ -229,6 +231,68 @@ rejectsInvalidErrorPayload()
                 )
             )
     );
+}
+
+void InferenceResponseDispatcherTest::
+acceptsStopAcquisitionRequest()
+{
+    InferenceResponseDispatcher dispatcher;
+    QSignalSpy stopSpy(
+        &dispatcher,
+        &InferenceResponseDispatcher::
+            sigStopAcquisitionRequested);
+    QSignalSpy rejectedSpy(
+        &dispatcher,
+        &InferenceResponseDispatcher::
+            sigResponseRejected);
+
+    ReceivedResponsePacket packet;
+    packet.header.messageType =
+        FrameProtocol::MessageType::
+            StopAcquisitionRequest;
+    packet.header.pixelFormat =
+        FrameProtocol::PixelFormat::Unknown;
+    packet.header.sequence = 750;
+
+    dispatcher.dispatch(packet);
+
+    QCOMPARE(stopSpy.count(), 1);
+    QCOMPARE(
+        stopSpy.first().at(0).toULongLong(),
+        750ULL);
+    QCOMPARE(rejectedSpy.count(), 0);
+}
+
+void InferenceResponseDispatcherTest::
+rejectsInvalidStopAcquisitionRequest()
+{
+    InferenceResponseDispatcher dispatcher;
+    QSignalSpy stopSpy(
+        &dispatcher,
+        &InferenceResponseDispatcher::
+            sigStopAcquisitionRequested);
+    QSignalSpy rejectedSpy(
+        &dispatcher,
+        &InferenceResponseDispatcher::
+            sigResponseRejected);
+
+    ReceivedResponsePacket packet;
+    packet.header.messageType =
+        FrameProtocol::MessageType::
+            StopAcquisitionRequest;
+    packet.header.pixelFormat =
+        FrameProtocol::PixelFormat::Jpeg;
+    packet.header.sequence = 751;
+    packet.header.width = 10;
+    packet.payload = QByteArrayLiteral("invalid");
+
+    dispatcher.dispatch(packet);
+
+    QCOMPARE(stopSpy.count(), 0);
+    QCOMPARE(rejectedSpy.count(), 1);
+    QCOMPARE(
+        rejectedSpy.first().at(0).toULongLong(),
+        751ULL);
 }
 
 void InferenceResponseDispatcherTest::
