@@ -384,6 +384,39 @@ if(BUILD_TESTING)
         NAME InferenceResponseDispatcherTest
         COMMAND InferenceResponseDispatcherTest
     )
+
+    qt_add_executable(TcpResponsePipelineTest
+        tests/TcpResponsePipelineTest.cpp
+
+        Transport/TcpClient.h
+        Transport/TcpClient.cpp
+        Transport/ResponseStreamDecoder.h
+        Transport/ResponseStreamDecoder.cpp
+
+        Protocol/FrameProtocol.h
+        Protocol/FrameProtocol.cpp
+        Protocol/InferenceResponseCodec.h
+        Protocol/InferenceResponseCodec.cpp
+        Protocol/InferenceResponseDispatcher.h
+        Protocol/InferenceResponseDispatcher.cpp
+    )
+
+    target_include_directories(TcpResponsePipelineTest
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    target_link_libraries(TcpResponsePipelineTest
+        PRIVATE
+            Qt6::Core
+            Qt6::Network
+            Qt6::Test
+    )
+
+    add_test(
+        NAME TcpResponsePipelineTest
+        COMMAND TcpResponsePipelineTest
+    )
 endif()
 
 include(GNUInstallDirs)

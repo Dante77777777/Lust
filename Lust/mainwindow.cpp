@@ -9,6 +9,12 @@ MainWindow::MainWindow(QWidget *parent)
     , paramWidget(new ParamWidget(controlWidget,this))
     , loadingDialog(new LoadingDialog(this))
     , tcpClient(new TcpClient(this))
+    , responseStreamDecoder(
+          new ResponseStreamDecoder(this)
+      )
+    , responseDispatcher(
+          new InferenceResponseDispatcher(this)
+      )
 {
     setupUI();
     setupNetworkConnections();
@@ -58,6 +64,123 @@ void MainWindow::setupUI()
 
 void MainWindow::setupNetworkConnections()
 {
+    /*
+     * TCP 没有消息边界。收到的任意字节先交给流解码器，
+     * 再把完整协议包交给业务响应分发器。
+     */
+    connect(
+        tcpClient,
+        &TcpClient::bytesReceived,
+        responseStreamDecoder,
+        &ResponseStreamDecoder::appendBytes
+    );
+
+    connect(
+        responseStreamDecoder,
+        &ResponseStreamDecoder::sigResponseDecoded,
+        responseDispatcher,
+        &InferenceResponseDispatcher::dispatch
+    );
+
+    connect(
+        responseStreamDecoder,
+        &ResponseStreamDecoder::sigProtocolError,
+        this,
+        [this](const QString& errorMessage)
+        {
+            statusBar()->showMessage(
+                tr("检测服务器协议错误：%1")
+                    .arg(errorMessage),
+                5000
+            );
+
+            /*
+             * 协议流已经不可信，主动断开连接，避免继续
+             * 按照错误边界解析后续字节。
+             */
+            tcpClient->disconnectFromServer();
+        }
+    );
+
+    connect(
+        responseStreamDecoder,
+        &ResponseStreamDecoder::sigBufferOverflow,
+        this,
+        [this](qsizetype bufferedBytes)
+        {
+            statusBar()->showMessage(
+                tr("检测响应缓存溢出：%1 bytes")
+                    .arg(bufferedBytes),
+                5000
+            );
+
+            tcpClient->disconnectFromServer();
+        }
+    );
+
+    connect(
+        responseDispatcher,
+        &InferenceResponseDispatcher::
+            sigInferenceResultReceived,
+        this,
+        [this](
+            quint64 sequence,
+            const InferenceResponseCodec::
+                InferenceResultPayload& result)
+        {
+            statusBar()->showMessage(
+                tr(
+                    "检测结果 #%1：%2，"
+                    "Score=%3，耗时=%4 ms，"
+                    "缺陷面积=%5 px"
+                )
+                    .arg(sequence)
+                    .arg(result.detectionLevel)
+                    .arg(result.score, 0, 'f', 3)
+                    .arg(result.inferenceMs)
+                    .arg(result.defectArea)
+            );
+        }
+    );
+
+    connect(
+        responseDispatcher,
+        &InferenceResponseDispatcher::
+            sigInferenceErrorReceived,
+        this,
+        [this](
+            quint64 sequence,
+            const InferenceResponseCodec::
+                InferenceErrorPayload& error)
+        {
+            statusBar()->showMessage(
+                tr("检测失败 #%1：[%2] %3")
+                    .arg(sequence)
+                    .arg(error.errorCode)
+                    .arg(error.message),
+                5000
+            );
+        }
+    );
+
+    connect(
+        responseDispatcher,
+        &InferenceResponseDispatcher::
+            sigResponseRejected,
+        this,
+        [this](
+            quint64 sequence,
+            const QString& errorMessage)
+        {
+            statusBar()->showMessage(
+                tr("无效检测响应 #%1：%2")
+                    .arg(sequence)
+                    .arg(errorMessage),
+                5000
+            );
+        }
+    );
+
     connect(
         controlWidget,
         &ControlWidget::detectionServerConnectRequested,
@@ -90,17 +213,41 @@ void MainWindow::setupNetworkConnections()
         statusBar()->showMessage(tr("检测服务器已连接"));
     });
 
-    connect(tcpClient,&TcpClient::disconnected,this,[this](){
-        controlWidget->setDetectionServerConnected(false);
-        viewWidget->setPacketPublishingEnabled(false);
-        statusBar()->showMessage(tr("检测服务器已断开"));
-    });
+    connect(
+        tcpClient,
+        &TcpClient::disconnected,
+        this,
+        [this]()
+        {
+            responseStreamDecoder->reset();
+            controlWidget->
+                setDetectionServerConnected(false);
+            viewWidget->
+                setPacketPublishingEnabled(false);
+            statusBar()->showMessage(
+                tr("检测服务器已断开")
+            );
+        }
+    );
 
-    connect(tcpClient,&TcpClient::connectionError,this,[this](const QString& errorMessage){
-        controlWidget->setDetectionServerConnected(false);
-        viewWidget->setPacketPublishingEnabled(false);
-        statusBar()->showMessage(tr("检测服务器连接失败：%1").arg(errorMessage),5000);
-    });
+    connect(
+        tcpClient,
+        &TcpClient::connectionError,
+        this,
+        [this](const QString& errorMessage)
+        {
+            responseStreamDecoder->reset();
+            controlWidget->
+                setDetectionServerConnected(false);
+            viewWidget->
+                setPacketPublishingEnabled(false);
+            statusBar()->showMessage(
+                tr("检测服务器连接失败：%1")
+                    .arg(errorMessage),
+                5000
+            );
+        }
+    );
 
     connect(tcpClient,&TcpClient::sendError,this,[this](const QString& errorMessage){
         statusBar()->showMessage(tr("图像发送失败：%1").arg(errorMessage),5000);
@@ -115,6 +262,7 @@ void MainWindow::testModel()
 
 void MainWindow::connectDetectionServer(const QString& host, quint16 port)
 {
+    responseStreamDecoder->reset();
     viewWidget->setPacketPublishingEnabled(false);
     controlWidget->setDetectionServerBusy(
         true,

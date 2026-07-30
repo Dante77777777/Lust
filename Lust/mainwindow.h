@@ -10,6 +10,8 @@
 #include "ViewWidget/viewwidget.h"
 #include "ParamWidget/ParamWidget.h"
 #include "LoadingDialog/LoadingDialog.h"
+#include "Protocol/InferenceResponseDispatcher.h"
+#include "Transport/ResponseStreamDecoder.h"
 #include "Transport/TcpClient.h"
 
 class MainWindow : public QMainWindow
@@ -31,6 +33,9 @@ private:
     ViewWidget* viewWidget;
     ParamWidget* paramWidget;
     LoadingDialog* loadingDialog;
+
     TcpClient* tcpClient;
+    ResponseStreamDecoder* responseStreamDecoder;
+    InferenceResponseDispatcher* responseDispatcher;
 };
 #endif // MAINWINDOW_H
