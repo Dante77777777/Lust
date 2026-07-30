@@ -78,6 +78,8 @@ qt_add_executable(Lust
     Protocol/FrameProtocol.cpp
     Protocol/ImagePacketEncoder.h
     Protocol/ImagePacketEncoder.cpp
+    Protocol/InferenceResponseCodec.h
+    Protocol/InferenceResponseCodec.cpp
 
     Transport/TcpClient.h
     Transport/TcpClient.cpp
@@ -244,6 +246,29 @@ if(BUILD_TESTING)
     add_test(
         NAME FrameProtocolTest
         COMMAND FrameProtocolTest
+    )
+
+    qt_add_executable(InferenceResponseCodecTest
+        tests/InferenceResponseCodecTest.cpp
+
+        Protocol/InferenceResponseCodec.h
+        Protocol/InferenceResponseCodec.cpp
+    )
+
+    target_include_directories(InferenceResponseCodecTest
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    target_link_libraries(InferenceResponseCodecTest
+        PRIVATE
+            Qt6::Core
+            Qt6::Test
+    )
+
+    add_test(
+        NAME InferenceResponseCodecTest
+        COMMAND InferenceResponseCodecTest
     )
 
     qt_add_executable(ImagePacketEncoderTest
