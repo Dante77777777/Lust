@@ -109,6 +109,45 @@ target_link_libraries(Lust
         Qt::Network
 )
 
+set(MV_CAMERA_LIB
+    "${CMAKE_CURRENT_SOURCE_DIR}/libs/MvCameraControl.lib"
+)
+set(MV_CAMERA_RUNTIME_DIR
+    "C:/Program Files (x86)/Common Files/MVS/Runtime/Win64_x64"
+    CACHE PATH "Hikrobot MVS x64 runtime directory"
+)
+set(MV_CAMERA_DLL
+    "${MV_CAMERA_RUNTIME_DIR}/MvCameraControl.dll"
+)
+set(MV_CAMERA_INCLUDE_DIR
+    "${CMAKE_CURRENT_SOURCE_DIR}/depends"
+)
+
+add_library(MvCameraControl SHARED IMPORTED)
+
+set_target_properties(MvCameraControl PROPERTIES
+    IMPORTED_IMPLIB "${MV_CAMERA_LIB}"
+    IMPORTED_LOCATION "${MV_CAMERA_DLL}"
+    INTERFACE_INCLUDE_DIRECTORIES "${MV_CAMERA_INCLUDE_DIR}"
+)
+
+target_link_libraries(Lust PRIVATE MvCameraControl)
+
+if(NOT EXISTS "${MV_CAMERA_DLL}")
+    message(FATAL_ERROR "Hikrobot MvCameraControl.dll not found: ${MV_CAMERA_DLL}")
+endif()
+
+file(GLOB MV_CAMERA_RUNTIME_DLLS CONFIGURE_DEPENDS
+    "${MV_CAMERA_RUNTIME_DIR}/*.dll"
+)
+add_custom_command(TARGET Lust POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${MV_CAMERA_RUNTIME_DLLS}
+        "$<TARGET_FILE_DIR:Lust>"
+    COMMAND_EXPAND_LISTS
+    COMMENT "Copying Hikrobot MVS runtime DLLs"
+)
+
 target_include_directories(Lust PRIVATE ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(Lust PRIVATE ${OpenCV_LIBS})
 
@@ -155,6 +194,8 @@ if(BUILD_TESTING)
         CameraFactory/CameraFactory.cpp
         CameraFactory/VirtualCamera.h
         CameraFactory/VirtualCamera.cpp
+        CameraFactory/HikCamera.h
+        CameraFactory/HikCamera.cpp
 
         ParseUiJson/ParseUiJson.h
         ParseUiJson/ParseUiJson.cpp
@@ -173,6 +214,7 @@ if(BUILD_TESTING)
             Qt6::Core
             Qt6::Widgets
             Qt6::Test
+            MvCameraControl
             ${OpenCV_LIBS}
     )
 
@@ -200,6 +242,8 @@ if(BUILD_TESTING)
         CameraFactory/CameraFactory.cpp
         CameraFactory/VirtualCamera.h
         CameraFactory/VirtualCamera.cpp
+        CameraFactory/HikCamera.h
+        CameraFactory/HikCamera.cpp
 
         ParseUiJson/ParseUiJson.h
         ParseUiJson/ParseUiJson.cpp
@@ -223,6 +267,7 @@ if(BUILD_TESTING)
             Qt6::Core
             Qt6::Widgets
             Qt6::Test
+            MvCameraControl
             ${OpenCV_LIBS}
     )
 

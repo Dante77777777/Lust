@@ -5,6 +5,7 @@ CameraFactory* CameraFactory::getInstance()
 {
     static CameraFactory factory;
     factory.registerCamera<VirtualCamera>(VirtualCamera::VIRTUAL_CAMERA_VENDER);
+    factory.registerCamera<HikCamera>(HikCamera::VIRTUAL_CAMERA_VENDER);
     return &factory;
 }
 

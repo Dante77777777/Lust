@@ -3,5 +3,6 @@
         <file>resource/VirtualCameraParam.json</file>
         <file>resource/style.qss</file>
         <file>resource/camara.png</file>
+        <file>resource/HikCameraParam.json</file>
     </qresource>
 </RCC>

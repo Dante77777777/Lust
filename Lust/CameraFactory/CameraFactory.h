@@ -3,6 +3,7 @@
 
 #include "../CameraInterface/CameraInterface.h"
 #include "VirtualCamera.h"
+#include "HikCamera.h"
 #include <QMap>
 #include <QMutex>
 #include <QString>

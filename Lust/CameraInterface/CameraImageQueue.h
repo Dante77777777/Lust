@@ -11,6 +11,8 @@
 #include "opencv2/opencv.hpp"
 #include "CameraError.h"
 
+#define ImageQueueSize 10
+
 class CameraImageQueue
 {
 public:

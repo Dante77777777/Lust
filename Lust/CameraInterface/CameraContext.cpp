@@ -36,7 +36,7 @@ uint32_t CameraContext::enumerationCamera(QVector<CMCameraMetaInfo>& cameraInfos
 
     QVector<CMCameraMetaInfo> infos;
     VirtualCamera::enumCamera(infos);
-    //HikCamera::enumCamera(infos);
+    HikCamera::EnumCamera(infos);
 
     for(auto info : infos)
     {
@@ -68,13 +68,13 @@ uint32_t CameraContext::getParamList(const QString serial, QVector<CameraParam>&
     }
 
     auto camera = serialCamMap[serial];
-    QVector<CameraParam> paramListTemp;
-    camera->getParamList(paramListTemp);
-    for(auto param : paramListTemp)
-    {
-        camera->readParam(param);
-        paramList.push_back(param);
-    }
+    //QVector<CameraParam> paramListTemp;
+    camera->getParamList(paramList);
+    // for(auto param : paramListTemp)
+    // {
+    //     camera->readParam(param);
+    //     paramList.push_back(param);
+    // }
     return CHONGMING_OK;
 }
 

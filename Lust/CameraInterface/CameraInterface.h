@@ -22,6 +22,11 @@ public:
         return cameraInfo.UserDefineID;
     }
 
+    virtual QString Serial()
+    {
+        return cameraInfo.Serial;
+    }
+
     virtual uint32_t getParamList(QVector<CameraParam>& paramList) = 0;
     // 判断相机是否连接
     virtual bool isConnect() = 0;
